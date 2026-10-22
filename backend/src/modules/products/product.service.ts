@@ -12,7 +12,32 @@ export async function getProducts(
   const filter: Record<string, unknown> = {};
 
   if (!isAdmin || !query.includeInactive) filter.isActive = true;
-  if (query.category) filter.category = query.category;
+
+  if (query.category) {
+    if (mongoose.isValidObjectId(query.category)) {
+      filter.category = new mongoose.Types.ObjectId(query.category);
+    } else {
+      const catSlug = query.category.toLowerCase().trim();
+      const matchedCat = await Category.findOne({
+        $or: [
+          { slug: catSlug },
+          { slug: `electric-${catSlug}` },
+          { slug: `ev-${catSlug}` },
+          { slug: { $regex: catSlug.replace(/s$/, ''), $options: 'i' } },
+        ],
+      });
+
+      if (matchedCat) {
+        filter.category = matchedCat._id;
+      } else {
+        const typeMatch = catSlug.replace(/s$/, '').toLowerCase();
+        if (['motorcycle', 'scooter', 'accessory', 'part'].includes(typeMatch)) {
+          filter.productType = typeMatch;
+        }
+      }
+    }
+  }
+
   if (query.productType) filter.productType = query.productType;
   if (query.featured) filter.isFeatured = true;
 
@@ -96,9 +121,21 @@ export async function getRelatedProducts(productId: string, limit = 6): Promise<
 export async function createProduct(data: CreateProductInput): Promise<IProduct> {
   const slug = data.slug || slugify(data.name);
 
-  // Validate category exists
-  const category = await Category.findById(data.category);
-  if (!category) throw new NotFoundError('Category');
+  let categoryId: mongoose.Types.ObjectId;
+  if (data.category && mongoose.isValidObjectId(data.category)) {
+    const category = await Category.findById(data.category);
+    if (!category) throw new NotFoundError('Category');
+    categoryId = category._id as mongoose.Types.ObjectId;
+  } else {
+    // Auto-match or find first category
+    const matchedCategory = await Category.findOne(
+      data.productType === 'accessory' || data.productType === 'part'
+        ? { slug: 'ev-accessories' }
+        : { slug: 'electric-motorcycles' }
+    ) || await Category.findOne();
+    if (!matchedCategory) throw new NotFoundError('No default category found in database');
+    categoryId = matchedCategory._id as mongoose.Types.ObjectId;
+  }
 
   const existingSlug = await Product.findOne({ slug });
   if (existingSlug) throw new ConflictError('Product with this slug already exists');
@@ -109,7 +146,7 @@ export async function createProduct(data: CreateProductInput): Promise<IProduct>
   return Product.create({
     ...data,
     slug,
-    category: new mongoose.Types.ObjectId(data.category),
+    category: categoryId,
   } as any);
 }
 

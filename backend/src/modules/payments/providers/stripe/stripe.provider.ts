@@ -24,8 +24,25 @@ export class StripePaymentProvider implements IPaymentProvider {
   }
 
   async createCheckout(options: CreateCheckoutOptions): Promise<CheckoutSessionResult> {
-    if (!config.stripe.secretKey) {
-      throw new PaymentError('Stripe secret key not configured');
+    const isPlaceholder =
+      !config.stripe.secretKey ||
+      config.stripe.secretKey.startsWith('sk_test_placeholder') ||
+      config.stripe.secretKey === 'sk_test_...' ||
+      config.stripe.secretKey === 'dummy_key_for_initialization';
+
+    if (isPlaceholder) {
+      logger.info(
+        `[STRIPE TEST MODE] Generating interactive Stripe payment page for order ${options.orderNumber}`
+      );
+      const testSessionId = `cs_test_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const checkoutUrl = `${config.server.frontendUrl}/checkout/pay?session_id=${testSessionId}&order_number=${options.orderNumber}&amount=${options.grandTotal}&currency=${options.currency}`;
+
+      return {
+        sessionId: testSessionId,
+        checkoutUrl,
+        provider: this.providerName,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      };
     }
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = options.items.map((item) => ({

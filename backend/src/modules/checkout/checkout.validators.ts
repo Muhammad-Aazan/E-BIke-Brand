@@ -6,16 +6,44 @@ export const checkoutAddressSchema = addressSchema.omit({ isDefault: true, label
 const checkoutItemSchema = z.object({
   productId: z
     .string()
-    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid Product ObjectId format'),
+    .min(1, 'Product identifier is required'),
   variantId: z
     .string()
-    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid Variant ObjectId format')
     .optional(),
   quantity: z
     .number()
     .int('Quantity must be an integer')
     .min(1, 'Quantity must be at least 1')
     .max(999, 'Quantity cannot exceed 999'),
+});
+
+export const deliveryHandoverSchema = z.object({
+  preferredDate: z.string().optional(),
+  preferredTimeSlot: z.enum(['morning', 'afternoon', 'evening', 'anytime']).default('anytime').optional(),
+  handoverType: z.enum(['home_delivery', 'atelier_pickup']).default('home_delivery').optional(),
+  landmarkOrCrossStreet: z.string().trim().max(200).optional(),
+  handoverNotes: z.string().trim().max(500).optional(),
+});
+
+export const sendCheckoutOtpSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email('Please enter a valid email address')
+    .toLowerCase(),
+  fullName: z.string().trim().max(100).optional(),
+});
+
+export const verifyCheckoutOtpSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email('Please enter a valid email address')
+    .toLowerCase(),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Verification code must be exactly 6 numeric digits'),
 });
 
 export const validateCheckoutSchema = z.object({
@@ -44,7 +72,13 @@ export const createOrderSchema = z.object({
   customerNotes: z.string().trim().max(500, 'Customer notes cannot exceed 500 characters').optional(),
   guestName: z.string().trim().min(2, 'Guest name must be at least 2 characters').max(100).optional(),
   guestEmail: z.string().trim().email('Please enter a valid guest email address').toLowerCase().optional(),
+  guestPhone: z.string().trim().optional(),
+  nationalIdOrCnic: z.string().trim().max(50).optional(),
+  deliveryHandover: deliveryHandoverSchema.optional(),
+  emailVerificationToken: z.string().trim().optional(),
 });
 
 export type ValidateCheckoutInput = z.infer<typeof validateCheckoutSchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+export type SendCheckoutOtpInput = z.infer<typeof sendCheckoutOtpSchema>;
+export type VerifyCheckoutOtpInput = z.infer<typeof verifyCheckoutOtpSchema>;

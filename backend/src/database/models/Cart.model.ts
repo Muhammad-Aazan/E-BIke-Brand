@@ -37,8 +37,8 @@ const cartItemSchema = new Schema<ICartItem>({
 }, { _id: true });
 
 const cartSchema = new Schema<ICart>({
-  user: { type: Schema.Types.ObjectId, ref: 'User', sparse: true },
-  sessionId: { type: String, sparse: true },
+  user: { type: Schema.Types.ObjectId, ref: 'User' },
+  sessionId: { type: String },
   items: { type: [cartItemSchema], default: [] },
   couponCode: String,
   expiresAt: { type: Date },

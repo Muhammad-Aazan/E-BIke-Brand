@@ -51,7 +51,6 @@ const couponSchema = new Schema<ICoupon>({
   createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
 
-couponSchema.index({ code: 1 }, { unique: true });
 couponSchema.index({ isActive: 1, startsAt: 1, expiresAt: 1 });
 
 couponSchema.set('toJSON', { versionKey: false });

@@ -95,6 +95,12 @@ export const config = {
     uploadPreset: optionalEnv('CLOUDINARY_UPLOAD_PRESET', 'evee_products'),
   },
 
+  imagekit: {
+    privateKey: optionalEnv('IMAGEKIT_PRIVATE_KEY', 'private_oLjGFIXZ5fI5412XlxDSMBXrKi0='),
+    publicKey: optionalEnv('IMAGEKIT_PUBLIC_KEY', 'public_9znI8VLlozVy8R6CJMqpY9tQuCU='),
+    urlEndpoint: optionalEnv('IMAGEKIT_URL_ENDPOINT', 'https://ik.imagekit.io/qbwmuvvwo'),
+  },
+
   smtp: {
     host: optionalEnv('SMTP_HOST', 'smtp.mailtrap.io'),
     port: numEnv('SMTP_PORT', 587),

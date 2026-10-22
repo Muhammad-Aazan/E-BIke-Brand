@@ -10,11 +10,31 @@ export async function getProfile(userId: string): Promise<IUser> {
 
 export async function updateProfile(
   userId: string,
-  data: { name?: string; phone?: string }
+  data: { name?: string; phone?: string; avatarUrl?: string }
 ): Promise<IUser> {
   const user = await User.findByIdAndUpdate(userId, data, { new: true, runValidators: true });
   if (!user) throw new NotFoundError('User');
   return user;
+}
+
+export async function changePassword(
+  userId: string,
+  currentPass: string,
+  newPass: string
+): Promise<void> {
+  const user = await User.findById(userId).select('+passwordHash');
+  if (!user) throw new NotFoundError('User');
+
+  const bcrypt = await import('bcryptjs');
+  const valid = await bcrypt.compare(currentPass, user.passwordHash);
+  if (!valid) {
+    const { ValidationError } = await import('../../common/errors/AppError');
+    throw new ValidationError('Current password is incorrect');
+  }
+
+  const { config } = await import('../../config');
+  user.passwordHash = await bcrypt.hash(newPass, config.bcrypt.saltRounds);
+  await user.save();
 }
 
 export async function getAddresses(userId: string): Promise<IAddress[]> {

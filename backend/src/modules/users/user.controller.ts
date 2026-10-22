@@ -79,3 +79,23 @@ export async function getOrderDetail(req: Request, res: Response, next: NextFunc
     next(err);
   }
 }
+
+export async function changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+    await userService.changePassword(req.user!.userId, currentPassword, newPassword);
+    successResponse(res, null, { message: 'Password updated successfully' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getContactRequests(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { ContactRequest } = await import('../../database/models/ContactRequest.model');
+    const requests = await ContactRequest.find({ user: req.user!.userId }).sort({ createdAt: -1 }).limit(20);
+    successResponse(res, { requests });
+  } catch (err) {
+    next(err);
+  }
+}

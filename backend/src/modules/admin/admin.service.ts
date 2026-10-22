@@ -21,13 +21,13 @@ import {
 import { logger } from '../../common/utils/logger';
 
 const VALID_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending_payment: ['confirmed', 'cancelled'],
-  confirmed: ['processing', 'cancelled'],
-  processing: ['ready_to_ship', 'cancelled'],
-  ready_to_ship: ['shipped', 'cancelled'],
-  shipped: ['delivered'],
+  pending_payment: ['confirmed', 'processing', 'ready_to_ship', 'cancelled'],
+  confirmed: ['processing', 'ready_to_ship', 'shipped', 'delivered', 'cancelled'],
+  processing: ['ready_to_ship', 'shipped', 'delivered', 'cancelled'],
+  ready_to_ship: ['shipped', 'delivered', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
   delivered: ['partially_refunded', 'refunded'],
-  cancelled: [],
+  cancelled: ['pending_payment', 'confirmed'],
   partially_refunded: ['refunded'],
   refunded: [],
 };
@@ -74,6 +74,20 @@ export async function updateOrderStatus(
   const order = await Order.findOne({ orderNumber });
   if (!order) throw new NotFoundError('Order');
 
+  // If already at the requested status, simply add note if provided and return
+  if (order.orderStatus === input.status) {
+    if (input.note) {
+      order.statusHistory.push({
+        status: input.status as OrderStatus,
+        timestamp: new Date(),
+        note: input.note,
+        updatedBy: new mongoose.Types.ObjectId(adminUserId),
+      });
+      await order.save();
+    }
+    return order;
+  }
+
   const allowedTransitions = VALID_STATUS_TRANSITIONS[order.orderStatus] || [];
   if (!allowedTransitions.includes(input.status as OrderStatus)) {
     throw new ValidationError(
@@ -83,6 +97,12 @@ export async function updateOrderStatus(
 
   const prevStatus = order.orderStatus;
   order.orderStatus = input.status as OrderStatus;
+
+  // If transitioning to confirmed, also update paymentStatus if still pending
+  if (input.status === 'confirmed' && order.paymentStatus === 'pending') {
+    order.paymentStatus = 'paid';
+  }
+
   order.statusHistory.push({
     status: input.status as OrderStatus,
     timestamp: new Date(),
@@ -210,9 +230,13 @@ export async function confirmCodOrder(
 export async function getCustomers(
   page = 1,
   limit = 20,
-  search?: string
+  search?: string,
+  role?: string
 ): Promise<{ customers: IUser[]; meta: PaginationMeta }> {
-  const filter: Record<string, unknown> = { role: 'customer' };
+  const filter: Record<string, unknown> = {};
+  if (role && role !== 'all') {
+    filter.role = role;
+  }
 
   if (search) {
     filter.$or = [
@@ -228,7 +252,7 @@ export async function getCustomers(
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select('-addresses -refreshTokens'),
+      .select('-refreshTokens'),
     User.countDocuments(filter),
   ]);
 
@@ -270,13 +294,24 @@ export async function adjustStock(
   adminUserId: string,
   ipAddress?: string
 ): Promise<void> {
+  // Accept both `change` (from admin UI) and `quantityDelta` (canonical)
+  const delta = (input as any).change ?? input.quantityDelta ?? 0;
+  const note = (input as any).reason ?? input.note;
+
+  // Fetch product sku if not provided
+  let sku = input.sku;
+  if (!sku) {
+    const prod = await import('../../database/models').then(m => m.Product.findById(input.productId).select('sku'));
+    sku = prod?.sku ?? 'UNKNOWN';
+  }
+
   await adjustInventory({
     productId: input.productId,
     variantId: input.variantId,
-    sku: input.sku,
-    quantityDelta: input.quantityDelta,
-    movementType: input.movementType,
-    note: input.note,
+    sku,
+    quantityDelta: delta,
+    movementType: input.movementType ?? 'adjustment',
+    note,
     performedBy: adminUserId,
   });
 
@@ -288,10 +323,10 @@ export async function adjustStock(
     performedByRole: 'admin',
     ipAddress,
     metadata: {
-      sku: input.sku,
-      quantityDelta: input.quantityDelta,
-      movementType: input.movementType,
-      note: input.note,
+      sku,
+      quantityDelta: delta,
+      movementType: input.movementType ?? 'adjustment',
+      note,
     },
   });
 }

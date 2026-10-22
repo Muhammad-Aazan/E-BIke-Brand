@@ -27,6 +27,8 @@ import { wishlistRouter } from './modules/wishlist/wishlist.routes';
 import { adminRouter } from './modules/admin/admin.routes';
 import { analyticsRouter } from './modules/analytics/analytics.routes';
 import { shippingRouter } from './modules/shipping/shipping.routes';
+import { contactRouter } from './modules/contact/contact.routes';
+import { uploadRouter } from './modules/upload/upload.routes';
 import { swaggerRouter } from './docs/swagger';
 
 export function createApp(): Application {
@@ -108,6 +110,8 @@ export function createApp(): Application {
   app.use('/api/v1/admin', adminRouter);
   app.use('/api/v1/analytics', analyticsRouter);
   app.use('/api/v1/shipping', shippingRouter);
+  app.use('/api/v1/contact', contactRouter);
+  app.use('/api/v1/upload', uploadRouter);
   app.use('/api/docs', swaggerRouter);
 
   // 404 handler

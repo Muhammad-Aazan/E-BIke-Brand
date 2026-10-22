@@ -48,7 +48,8 @@ export const createProductSchema = z.object({
   shortDescription: z.string().trim().max(500, 'Short description cannot exceed 500 characters').optional(),
   category: z
     .string()
-    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid Category ObjectId format'),
+    .regex(/^[0-9a-fA-F]{24}$/, 'Invalid Category ObjectId format')
+    .optional(),
   brand: z.string().trim().default('EVee'),
   productType: z.enum(['motorcycle', 'scooter', 'accessory', 'part']),
   basePrice: z
@@ -57,7 +58,7 @@ export const createProductSchema = z.object({
     .min(0, 'Price must be non-negative'),
   compareAtPrice: z.number().int('Compare-at price must be an integer in paisa').min(0).optional(),
   currency: z.string().length(3).toUpperCase().default('PKR'),
-  images: z.array(z.string().url('Image must be a valid URL')).default([]),
+  images: z.array(z.string().trim()).default([]),
   specifications: z.array(specificationSchema).default([]),
   colorVariants: z.array(colorVariantSchema).default([]),
   inventory: z.number().int().min(0, 'Inventory cannot be negative').default(0),

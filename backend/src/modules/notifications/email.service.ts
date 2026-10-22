@@ -234,3 +234,38 @@ export async function sendRefundEmail(
     text: `Refund of ${refundAmount} processed for order ${orderNumber}.`,
   });
 }
+
+export async function sendCheckoutOtpEmail(
+  to: string,
+  name: string,
+  otp: string
+): Promise<void> {
+  await sendEmail({
+    to,
+    subject: `Your Crown Motors Vehicle Verification Code: ${otp}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #0b0c0e; color: #ffffff; padding: 32px; border-radius: 8px;">
+        <div style="border-bottom: 1px solid #222; padding-bottom: 20px; margin-bottom: 24px;">
+          <h1 style="margin: 0; font-size: 20px; letter-spacing: 2px; color: #d4e790; text-transform: uppercase;">Crown Motors</h1>
+          <p style="margin: 4px 0 0; font-size: 11px; letter-spacing: 1px; color: #888; text-transform: uppercase;">Electric Vehicle Handover Verification</p>
+        </div>
+        <p style="font-size: 15px; color: #e0e0e0; margin-bottom: 16px;">Hello ${name || 'Valued Customer'},</p>
+        <p style="font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 24px;">
+          Use the 6-digit verification code below to verify your email address and authorize your electric vehicle reservation and handover dispatch.
+        </p>
+        <div style="background-color: #16181d; border: 1px solid #2a2d35; border-radius: 8px; text-align: center; padding: 24px; margin-bottom: 24px;">
+          <span style="font-family: monospace; font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #d4e790;">${otp}</span>
+          <p style="font-size: 12px; color: #777; margin: 12px 0 0;">This code is valid for 10 minutes. Do not share it with anyone.</p>
+        </div>
+        <p style="font-size: 13px; color: #888; line-height: 1.5;">
+          Our concierge team requires a verified email to ensure your registration paperwork, VIN documentation, and white-glove delivery tracking reach you securely.
+        </p>
+        <hr style="border: none; border-top: 1px solid #222; margin: 28px 0 20px;" />
+        <p style="font-size: 11px; color: #555; margin: 0;">
+          © ${new Date().getFullYear()} Crown Motors / EVee Pakistan. All rights reserved.
+        </p>
+      </div>
+    `,
+    text: `Crown Motors Verification Code: ${otp}. Valid for 10 minutes. Verify your email for electric vehicle reservation and handover dispatch.`,
+  });
+}

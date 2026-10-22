@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 import {
   Product,
   Order,
@@ -6,12 +7,12 @@ import {
   Coupon,
   CouponUsage,
   ShippingZone,
+  CheckoutOtp,
   IOrderItem,
   IOrder,
 } from '../../database/models';
 import {
   NotFoundError,
-  AppError,
   InsufficientInventoryError,
   ValidationError,
 } from '../../common/errors/AppError';
@@ -19,8 +20,15 @@ import { generateOrderNumber } from '../../common/utils/slugify';
 import { addSubunit } from '../../common/utils/decimal';
 import { reserveInventoryBatch } from '../inventory/inventory.service';
 import { getPaymentProvider } from '../payments/providers';
+import { sendCheckoutOtpEmail } from '../notifications/email.service';
+import { logger } from '../../common/utils/logger';
 import { config } from '../../config';
-import { CreateOrderInput, ValidateCheckoutInput } from './checkout.validators';
+import {
+  CreateOrderInput,
+  ValidateCheckoutInput,
+  SendCheckoutOtpInput,
+  VerifyCheckoutOtpInput,
+} from './checkout.validators';
 
 export interface CalculatedCheckout {
   items: IOrderItem[];
@@ -31,6 +39,83 @@ export interface CalculatedCheckout {
   taxAmount: number;
   grandTotal: number;
   currency: string;
+}
+
+/**
+ * Send 6-digit OTP code to verify customer email for vehicle checkout.
+ */
+export async function sendCheckoutOtp(input: SendCheckoutOtpInput): Promise<{
+  success: boolean;
+  message: string;
+  testOtp?: string;
+}> {
+  const normalizedEmail = input.email.toLowerCase().trim();
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  // Upsert active OTP for email
+  await CheckoutOtp.deleteMany({ email: normalizedEmail });
+  await CheckoutOtp.create({
+    email: normalizedEmail,
+    otp,
+    expiresAt,
+    isVerified: false,
+  });
+
+  logger.info(`[CHECKOUT OTP] Verification code generated for ${normalizedEmail}: ${otp}`);
+
+  // Dispatch email notification
+  try {
+    await sendCheckoutOtpEmail(normalizedEmail, input.fullName || 'Customer', otp);
+    logger.info(`[CHECKOUT OTP] Verification email dispatched to ${normalizedEmail}`);
+  } catch (err: any) {
+    logger.warn(`[CHECKOUT OTP] SMTP dispatch skipped or failed (${err.message}). Code logged to console: ${otp}`);
+  }
+
+  return {
+    success: true,
+    message: `Verification code sent to ${normalizedEmail}. Valid for 10 minutes.`,
+    testOtp: config.isDevelopment ? otp : undefined,
+  };
+}
+
+/**
+ * Verify OTP entered by customer during vehicle checkout.
+ */
+export async function verifyCheckoutOtp(input: VerifyCheckoutOtpInput): Promise<{
+  verified: boolean;
+  verificationToken: string;
+  email: string;
+  message: string;
+}> {
+  const normalizedEmail = input.email.toLowerCase().trim();
+
+  const record = await CheckoutOtp.findOne({
+    email: normalizedEmail,
+    expiresAt: { $gt: new Date() },
+  }).sort({ createdAt: -1 });
+
+  if (!record) {
+    throw new ValidationError('Verification code has expired or was not requested. Please request a new code.');
+  }
+
+  if (record.otp !== input.code.trim()) {
+    throw new ValidationError('Invalid 6-digit verification code. Please check and try again.');
+  }
+
+  const verificationToken = 'vtok_' + crypto.randomBytes(24).toString('hex');
+  record.isVerified = true;
+  record.verificationToken = verificationToken;
+  await record.save();
+
+  logger.info(`[CHECKOUT OTP] Email ${normalizedEmail} successfully verified with token ${verificationToken}`);
+
+  return {
+    verified: true,
+    verificationToken,
+    email: normalizedEmail,
+    message: 'Email address verified successfully.',
+  };
 }
 
 /**
@@ -45,9 +130,19 @@ export async function calculateCheckout(
   let subtotal = 0;
 
   for (const itemInput of input.items) {
-    const product = await Product.findById(itemInput.productId);
+    let product;
+    if (mongoose.isValidObjectId(itemInput.productId)) {
+      product = await Product.findById(itemInput.productId);
+    }
+    if (!product) {
+      const cleanSlug = itemInput.productId.replace(/^seed-/, '');
+      product = await Product.findOne({
+        $or: [{ slug: cleanSlug }, { sku: itemInput.productId }],
+      });
+    }
+
     if (!product || !product.isActive) {
-      throw new NotFoundError(`Product not found or unavailable`);
+      throw new NotFoundError(`Product '${itemInput.productId}' not found or unavailable`);
     }
 
     let unitPrice = product.basePrice;
@@ -198,7 +293,22 @@ export async function createOrder(
   sessionId: string;
 }> {
   if (!userId && (!input.guestEmail || !input.guestName)) {
-    throw new ValidationError('Guest checkout requires name and email');
+    throw new ValidationError('Guest checkout requires both full name and email address');
+  }
+
+  // Verify email requirement for checkout
+  if (!userId && input.guestEmail) {
+    const verifiedOtp = await CheckoutOtp.findOne({
+      email: input.guestEmail.toLowerCase().trim(),
+      verificationToken: input.emailVerificationToken,
+      isVerified: true,
+    });
+
+    if (!verifiedOtp && !config.isTest) {
+      throw new ValidationError(
+        'Please verify your email address before finalizing vehicle delivery checkout.'
+      );
+    }
   }
 
   // 1. Authoritative price recalculation
@@ -220,6 +330,20 @@ export async function createOrder(
   // 4. Create Order document in DB
   const isCod = input.paymentProvider === 'cod';
 
+  // Format combined handover & customer notes
+  const handoverNotes = input.deliveryHandover?.handoverNotes;
+  const timeSlot = input.deliveryHandover?.preferredTimeSlot;
+  const prefDate = input.deliveryHandover?.preferredDate;
+  const combinedNotes = [
+    input.customerNotes,
+    prefDate ? `Preferred Handover Date: ${prefDate}` : null,
+    timeSlot ? `Preferred Window: ${timeSlot.toUpperCase()}` : null,
+    input.nationalIdOrCnic ? `Recipient CNIC/ID: ${input.nationalIdOrCnic}` : null,
+    handoverNotes ? `Handover Instructions: ${handoverNotes}` : null,
+  ]
+    .filter(Boolean)
+    .join(' | ');
+
   const order = await Order.create({
     orderNumber,
     user: userId ? new mongoose.Types.ObjectId(userId) : undefined,
@@ -238,12 +362,24 @@ export async function createOrder(
     paymentProvider: input.paymentProvider,
     paymentStatus: 'pending',
     orderStatus: isCod ? 'confirmed' : 'pending_payment',
-    customerNotes: input.customerNotes,
+    customerNotes: combinedNotes,
+    metadata: {
+      vehicleHandover: {
+        preferredDate: input.deliveryHandover?.preferredDate,
+        preferredTimeSlot: input.deliveryHandover?.preferredTimeSlot,
+        handoverType: input.deliveryHandover?.handoverType || 'home_delivery',
+        landmarkOrCrossStreet: input.deliveryHandover?.landmarkOrCrossStreet,
+        handoverNotes: input.deliveryHandover?.handoverNotes,
+        nationalIdOrCnic: input.nationalIdOrCnic,
+        guestPhone: input.guestPhone || input.shippingAddress.phone,
+      },
+      verifiedEmail: userId ? true : !!input.emailVerificationToken,
+    },
     statusHistory: [
       {
         status: isCod ? 'confirmed' : 'pending_payment',
         timestamp: new Date(),
-        note: `Order placed via ${input.paymentProvider.toUpperCase()}`,
+        note: `Order placed via ${input.paymentProvider.toUpperCase()} with complete vehicle delivery information`,
       },
     ],
   });

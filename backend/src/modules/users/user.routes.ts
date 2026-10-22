@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as userController from './user.controller';
 import { authenticate } from '../../common/middleware/auth';
 import { validate } from '../../common/middleware/validate';
-import { updateProfileSchema, addAddressSchema, updateAddressSchema } from './user.validators';
+import { updateProfileSchema, addAddressSchema, updateAddressSchema, changePasswordSchema } from './user.validators';
 
 export const userRouter = Router();
 
@@ -10,6 +10,7 @@ userRouter.use(authenticate); // All user routes require authentication
 
 userRouter.get('/profile', userController.getProfile);
 userRouter.patch('/profile', validate(updateProfileSchema), userController.updateProfile);
+userRouter.post('/change-password', validate(changePasswordSchema), userController.changePassword);
 
 userRouter.get('/addresses', userController.getAddresses);
 userRouter.post('/addresses', validate(addAddressSchema), userController.addAddress);

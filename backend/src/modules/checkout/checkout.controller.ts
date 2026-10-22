@@ -2,6 +2,32 @@ import { Request, Response, NextFunction } from 'express';
 import * as checkoutService from './checkout.service';
 import { successResponse } from '../../common/utils/response';
 
+export async function sendOtp(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const result = await checkoutService.sendCheckoutOtp(req.body);
+    successResponse(res, result, { message: result.message });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function verifyOtp(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const result = await checkoutService.verifyCheckoutOtp(req.body);
+    successResponse(res, result, { message: result.message });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function validateCheckout(
   req: Request,
   res: Response,

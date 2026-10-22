@@ -12,8 +12,6 @@ const wishlistSchema = new Schema<IWishlist>({
   products: [{ type: Schema.Types.ObjectId, ref: 'Product' }],
 }, { timestamps: true });
 
-wishlistSchema.index({ user: 1 }, { unique: true });
-
 wishlistSchema.set('toJSON', { versionKey: false });
 
 export const Wishlist: Model<IWishlist> = mongoose.model<IWishlist>('Wishlist', wishlistSchema);

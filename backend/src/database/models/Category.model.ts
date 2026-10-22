@@ -26,7 +26,6 @@ const categorySchema = new Schema<ICategory>({
   seoDescription: String,
 }, { timestamps: true });
 
-categorySchema.index({ slug: 1 }, { unique: true });
 categorySchema.index({ parent: 1, isActive: 1 });
 categorySchema.index({ sortOrder: 1 });
 

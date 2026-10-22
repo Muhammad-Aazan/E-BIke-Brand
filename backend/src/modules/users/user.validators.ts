@@ -3,7 +3,13 @@ import { phoneRegex, phoneErrorMessage } from '../auth/auth.validators';
 
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100).optional(),
-  phone: z.string().trim().regex(phoneRegex, phoneErrorMessage).optional(),
+  phone: z.string().trim().optional(),
+  avatarUrl: z.string().trim().optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters long'),
 });
 
 export const addressSchema = z.object({

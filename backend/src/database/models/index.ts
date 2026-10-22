@@ -26,3 +26,7 @@ export { AuditLog } from './AuditLog.model';
 export type { IAuditLog } from './AuditLog.model';
 export { WebhookEvent } from './WebhookEvent.model';
 export type { IWebhookEvent } from './WebhookEvent.model';
+export { CheckoutOtp } from './checkout-otp.model';
+export type { ICheckoutOtp } from './checkout-otp.model';
+export { ContactRequest } from './ContactRequest.model';
+export type { IContactRequest } from './ContactRequest.model';

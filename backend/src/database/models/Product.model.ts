@@ -116,8 +116,6 @@ const productSchema = new Schema<IProduct>({
 }, { timestamps: true });
 
 // Indexes
-productSchema.index({ slug: 1 }, { unique: true });
-productSchema.index({ sku: 1 }, { unique: true });
 productSchema.index({ category: 1, isActive: 1 });
 productSchema.index({ productType: 1, isActive: 1 });
 productSchema.index({ isFeatured: 1, isActive: 1 });

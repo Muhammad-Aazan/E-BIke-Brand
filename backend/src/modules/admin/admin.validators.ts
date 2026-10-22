@@ -38,16 +38,16 @@ export const adjustStockSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid Variant ObjectId format')
     .optional(),
-  sku: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z0-9]+(?:-[A-Z0-9]+)*$/, 'Invalid SKU format'),
-  quantityDelta: z
-    .number()
-    .int('Quantity delta must be an integer'),
-  movementType: z.enum(['restock', 'adjustment', 'return', 'damage']),
+  sku: z.string().trim().optional(),
+  // Accept both naming conventions
+  quantityDelta: z.number().int().optional(),
+  change: z.number().int().optional(),
+  movementType: z.enum(['restock', 'adjustment', 'return', 'damage']).default('adjustment'),
+  reason: z.string().trim().max(300).optional(),
   note: z.string().trim().max(300, 'Note cannot exceed 300 characters').optional(),
+}).refine(d => d.quantityDelta !== undefined || d.change !== undefined, {
+  message: 'Either quantityDelta or change is required',
+  path: ['quantityDelta'],
 });
 
 export const updateCustomerStatusSchema = z.object({

@@ -83,8 +83,9 @@ export async function getCustomers(
     const page = Math.max(1, parseInt((req.query.page as string) || '1', 10));
     const limit = Math.min(50, Math.max(1, parseInt((req.query.limit as string) || '20', 10)));
     const search = req.query.search as string | undefined;
+    const role = req.query.role as string | undefined;
 
-    const result = await adminService.getCustomers(page, limit, search);
+    const result = await adminService.getCustomers(page, limit, search, role);
     successResponse(res, { customers: result.customers }, { meta: result.meta });
   } catch (err) {
     next(err);

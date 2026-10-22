@@ -20,6 +20,7 @@ export interface IUser extends Document {
   normalizedEmail: string;
   passwordHash: string;
   phone?: string;
+  avatarUrl?: string;
   role: 'customer' | 'admin' | 'support';
   emailVerified: boolean;
   emailVerificationToken?: string;
@@ -74,6 +75,7 @@ const userSchema = new Schema<IUser>({
   normalizedEmail: { type: String, required: true, unique: true, lowercase: true },
   passwordHash: { type: String, required: true, select: false },
   phone: { type: String, trim: true },
+  avatarUrl: { type: String, trim: true },
   role: {
     type: String,
     enum: ['customer', 'admin', 'support'],
@@ -95,8 +97,6 @@ const userSchema = new Schema<IUser>({
 }, { timestamps: true });
 
 // Indexes
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ normalizedEmail: 1 }, { unique: true });
 userSchema.index({ role: 1 });
 userSchema.index({ accountStatus: 1 });
 userSchema.index({ 'refreshTokens.tokenHash': 1 });

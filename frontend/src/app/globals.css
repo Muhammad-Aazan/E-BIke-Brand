@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background: #0c0e0e;
+    color: #efefe7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-ink font-body text-fg;
+  }
+  :focus-visible {
+    outline: 1px solid #d2ec79;
+    outline-offset: 3px;
+  }
+  ::selection {
+    background: #d2ec79;
+    color: #151a13;
+  }
+  img {
+    @apply max-w-none;
+  }
+}

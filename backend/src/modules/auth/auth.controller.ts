@@ -20,7 +20,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
     res.cookie('accessToken', accessToken, { ...COOKIE_OPTIONS, maxAge: ACCESS_TOKEN_MAX_AGE });
     res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTIONS, maxAge: REFRESH_TOKEN_MAX_AGE });
 
-    successResponse(res, { user }, { statusCode: 201, message: 'Account created. Please verify your email.' });
+    successResponse(res, { user, accessToken, refreshToken }, { statusCode: 201, message: 'Account created. Please verify your email.' });
   } catch (err) {
     next(err);
   }
@@ -40,7 +40,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     res.cookie('accessToken', accessToken, { ...COOKIE_OPTIONS, maxAge: ACCESS_TOKEN_MAX_AGE });
     res.cookie('refreshToken', refreshToken, { ...COOKIE_OPTIONS, maxAge: REFRESH_TOKEN_MAX_AGE });
 
-    successResponse(res, { user }, { message: 'Login successful' });
+    successResponse(res, { user, accessToken, refreshToken }, { message: 'Login successful' });
   } catch (err) {
     next(err);
   }
@@ -77,7 +77,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
     res.cookie('accessToken', accessToken, { ...COOKIE_OPTIONS, maxAge: ACCESS_TOKEN_MAX_AGE });
     res.cookie('refreshToken', newRefreshToken, { ...COOKIE_OPTIONS, maxAge: REFRESH_TOKEN_MAX_AGE });
 
-    successResponse(res, { accessToken: '[in cookie]' }, { message: 'Token refreshed' });
+    successResponse(res, { accessToken, refreshToken: newRefreshToken }, { message: 'Token refreshed' });
   } catch (err) {
     next(err);
   }

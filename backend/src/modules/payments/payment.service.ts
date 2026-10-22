@@ -200,19 +200,42 @@ export async function getPaymentStatus(orderNumber: string): Promise<{
   grandTotal: number;
   currency: string;
   paidAt?: Date;
+  order?: any;
 }> {
-  const order = await Order.findOne({ orderNumber });
+  let order = await Order.findOne({ orderNumber });
   if (!order) throw new NotFoundError('Order');
+
+  // Handle test mode payment simulation auto-confirmation
+  if (order.paymentStatus === 'pending' && order.paymentReference?.startsWith('cs_test_')) {
+    logger.info(`[STRIPE TEST MODE] Auto-confirming test payment for order ${orderNumber}`);
+    try {
+      await handlePaymentSuccess({
+        eventId: `evt_sim_${Date.now()}`,
+        eventType: 'checkout.session.completed',
+        provider: 'stripe',
+        orderNumber: order.orderNumber,
+        paymentIntentId: `pi_sim_${Date.now()}`,
+        amount: order.grandTotal,
+        currency: order.currency,
+        status: 'paid',
+        payload: { simulated: true },
+      });
+      order = await Order.findOne({ orderNumber });
+    } catch (err: any) {
+      logger.error('Error auto-confirming simulated payment:', err);
+    }
+  }
 
   const payment = await Payment.findOne({ orderNumber });
 
   return {
-    orderNumber: order.orderNumber,
-    paymentStatus: order.paymentStatus,
-    orderStatus: order.orderStatus,
-    grandTotal: order.grandTotal,
-    currency: order.currency,
+    orderNumber: order!.orderNumber,
+    paymentStatus: order!.paymentStatus,
+    orderStatus: order!.orderStatus,
+    grandTotal: order!.grandTotal,
+    currency: order!.currency,
     paidAt: payment?.paidAt,
+    order: order!,
   };
 }
 

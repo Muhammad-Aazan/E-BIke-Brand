@@ -1,6 +1,14 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
 import { config } from './index';
 import { logger } from '../common/utils/logger';
+
+// Set public DNS servers to resolve MongoDB Atlas SRV records cleanly on Windows/custom DNS
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {
+  // Ignore in environments where setting DNS servers is not allowed
+}
 
 let isConnected = false;
 
