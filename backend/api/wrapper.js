@@ -1,23 +1,27 @@
-// Vercel serverless entry — wraps Express app with error catching
-let app;
-let loadError;
+// Vercel serverless entry — exposes exact DB connection error
+module.exports = async (req, res) => {
+  try {
+    const mod = require('./index.js');
+    const app = mod.default || mod;
 
-try {
-  const mod = require('./index.js');
-  app = mod.default || mod;
-} catch (err) {
-  loadError = err;
-  console.error('[FATAL] Failed to load Express app:', err);
-}
+    // If /debug-db requested, try connecting manually and report result
+    if (req.url === '/debug-db') {
+      const mongoose = require('mongoose');
+      const uri = process.env.MONGODB_URI;
+      res.status(200).json({
+        uri_prefix: uri ? uri.substring(0, 30) + '...' : 'NOT SET',
+        mongoose_state: mongoose.connection.readyState,
+        // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+      });
+      return;
+    }
 
-module.exports = (req, res) => {
-  if (loadError) {
+    app(req, res);
+  } catch (err) {
     res.status(500).json({
-      error: 'App failed to load',
-      message: loadError.message,
-      stack: loadError.stack,
+      error: 'App crashed',
+      message: err.message,
+      stack: err.stack,
     });
-    return;
   }
-  app(req, res);
 };

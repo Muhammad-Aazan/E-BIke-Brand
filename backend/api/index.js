@@ -5501,16 +5501,23 @@ import_mongoose31.default.connection.on("error", (error) => {
 
 // api/index.ts
 var app = createApp();
-var isConnected2 = false;
-app.use(async (_req, _res, next) => {
-  if (!isConnected2) {
-    try {
-      await connectDatabase();
-      isConnected2 = true;
-    } catch (err) {
-      console.error("[MongoDB Atlas Connection Error]:", err);
-    }
+var dbPromise = null;
+function ensureDb() {
+  if (!dbPromise) {
+    dbPromise = connectDatabase().catch((err) => {
+      dbPromise = null;
+      console.error("[MongoDB] Connection failed:", err?.message || err);
+      throw err;
+    });
   }
-  next();
+  return dbPromise;
+}
+app.use(async (_req, _res, next) => {
+  try {
+    await ensureDb();
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 var index_default = app;
