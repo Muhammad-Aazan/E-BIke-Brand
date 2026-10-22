@@ -1,30 +1,20 @@
 import { createApp } from '../backend/src/app';
 import { connectDatabase } from '../backend/src/config/database';
 
+const app = createApp();
+
 let isConnected = false;
-let appInstance: any = null;
 
-async function init() {
+app.use(async (_req, _res, next) => {
   if (!isConnected) {
-    await connectDatabase();
-    isConnected = true;
+    try {
+      await connectDatabase();
+      isConnected = true;
+    } catch (err) {
+      console.error('[MongoDB Atlas Connection Error]:', err);
+    }
   }
-  if (!appInstance) {
-    appInstance = createApp();
-  }
-  return appInstance;
-}
+  next();
+});
 
-export default async function handler(req: any, res: any) {
-  try {
-    const app = await init();
-    return app(req, res);
-  } catch (err: any) {
-    console.error('[Vercel Serverless Error]:', err);
-    return res.status(500).json({
-      success: false,
-      error: err?.message || 'Serverless initialization error',
-      code: err?.code || 'SERVERLESS_ERROR',
-    });
-  }
-}
+export default app;
