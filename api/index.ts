@@ -1,16 +1,35 @@
 import { createApp } from '../backend/src/app';
 import { connectDatabase } from '../backend/src/config/database';
 
-const app = createApp();
+let appInstance: any = null;
 
-// Middleware to ensure MongoDB is connected before handling any route
-app.use(async (_req, _res, next) => {
+export default async function handler(req: any, res: any) {
+  // Direct diagnostics ping route (no DB required)
+  if (req.url === '/api/ping' || req.url === '/api/v1/ping' || req.url === '/ping') {
+    return res.status(200).json({
+      status: 'ok',
+      message: 'EVee Backend Vercel Serverless Function is running!',
+      timestamp: new Date().toISOString(),
+      node: process.version,
+      hasMongoUri: Boolean(process.env.MONGODB_URI),
+      envKeys: Object.keys(process.env).filter(
+        (k) => !k.toLowerCase().includes('secret') && !k.toLowerCase().includes('pass') && !k.toLowerCase().includes('key')
+      ),
+    });
+  }
+
   try {
     await connectDatabase();
-    next();
-  } catch (err) {
-    next(err);
+    if (!appInstance) {
+      appInstance = createApp();
+    }
+    return appInstance(req, res);
+  } catch (err: any) {
+    console.error('[Vercel Handler Error]:', err);
+    return res.status(500).json({
+      success: false,
+      error: err.message || 'Serverless or Database invocation error',
+      stack: err.stack,
+    });
   }
-});
-
-export default app;
+}
