@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "EVee Crown Motors API Backend",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npx esbuild api/index.ts --bundle --platform=node --target=node20 --outfile=api/index.js --packages=external",
     "start": "node dist/src/server.js"
   },
   "dependencies": {
