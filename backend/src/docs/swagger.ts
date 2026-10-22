@@ -278,11 +278,17 @@ swaggerRouter.get('/json', (_req: Request, res: Response) => {
   res.json(openApiSpec);
 });
 
-swaggerRouter.use(
-  '/',
-  swaggerUi.serve,
-  swaggerUi.setup(openApiSpec, {
-    customSiteTitle: 'EVee API Documentation — Crown Motors',
-    customCss: '.swagger-ui .topbar { background-color: #1a1a2e; }',
-  })
-);
+try {
+  swaggerRouter.use(
+    '/',
+    swaggerUi.serve,
+    swaggerUi.setup(openApiSpec, {
+      customSiteTitle: 'EVee API Documentation — Crown Motors',
+      customCss: '.swagger-ui .topbar { background-color: #1a1a2e; }',
+    })
+  );
+} catch {
+  swaggerRouter.get('/', (_req: Request, res: Response) => {
+    res.json({ message: 'API Docs available at /json', spec: openApiSpec });
+  });
+}
