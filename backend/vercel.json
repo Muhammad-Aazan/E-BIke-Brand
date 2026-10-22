@@ -2,10 +2,12 @@
   "version": 2,
   "builds": [
     { "src": "api/ping.js", "use": "@vercel/node" },
+    { "src": "api/dbtest.js", "use": "@vercel/node" },
     { "src": "api/wrapper.js", "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/ping", "dest": "/api/ping.js" },
+    { "src": "/dbtest", "dest": "/api/dbtest.js" },
     { "src": "/(.*)", "dest": "/api/wrapper.js" }
   ]
 }
