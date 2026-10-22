@@ -1,8 +1,14 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load .env from project root (two levels up from backend/src)
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+// Load .env if present (safe in both local and serverless environments)
+try {
+  dotenv.config();
+  dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+  dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+} catch {
+  // Ignore in environments without .env file
+}
 
 function requireEnv(name: string, defaultValue?: string): string {
   const value = process.env[name] ?? defaultValue;

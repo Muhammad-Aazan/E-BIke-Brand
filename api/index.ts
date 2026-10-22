@@ -1,20 +1,16 @@
 import { createApp } from '../backend/src/app';
 import { connectDatabase } from '../backend/src/config/database';
 
-let appInstance: any = null;
+const app = createApp();
 
-export default async function handler(req: any, res: any) {
+// Middleware to ensure MongoDB is connected before handling any route
+app.use(async (_req, _res, next) => {
   try {
     await connectDatabase();
-    if (!appInstance) {
-      appInstance = createApp();
-    }
-    return appInstance(req, res);
-  } catch (err: any) {
-    console.error('[Vercel Serverless] Error handling request:', err);
-    res.status(500).json({
-      success: false,
-      error: err.message || 'Internal Serverless Error',
-    });
+    next();
+  } catch (err) {
+    next(err);
   }
-}
+});
+
+export default app;
