@@ -5481,8 +5481,9 @@ async function connectDatabase() {
   try {
     await import_mongoose31.default.connect(config.db.uri, {
       dbName: config.db.name,
-      serverSelectionTimeoutMS: 5e3,
-      socketTimeoutMS: 45e3
+      serverSelectionTimeoutMS: 15e3,
+      socketTimeoutMS: 45e3,
+      connectTimeoutMS: 15e3
     });
     isConnected = true;
     logger.info(`MongoDB connected: ${config.db.name}`);
@@ -5501,23 +5502,7 @@ import_mongoose31.default.connection.on("error", (error) => {
 
 // api/index.ts
 var app = createApp();
-var dbPromise = null;
-function ensureDb() {
-  if (!dbPromise) {
-    dbPromise = connectDatabase().catch((err) => {
-      dbPromise = null;
-      console.error("[MongoDB] Connection failed:", err?.message || err);
-      throw err;
-    });
-  }
-  return dbPromise;
-}
-app.use(async (_req, _res, next) => {
-  try {
-    await ensureDb();
-    next();
-  } catch (err) {
-    next(err);
-  }
+connectDatabase().catch((err) => {
+  console.error("[MongoDB] Cold-start connection failed:", err?.message || err);
 });
 var index_default = app;

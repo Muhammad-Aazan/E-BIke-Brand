@@ -23,8 +23,9 @@ export async function connectDatabase(): Promise<void> {
   try {
     await mongoose.connect(config.db.uri, {
       dbName: config.db.name,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 15000,
       socketTimeoutMS: 45000,
+      connectTimeoutMS: 15000,
     });
     isConnected = true;
     logger.info(`MongoDB connected: ${config.db.name}`);
