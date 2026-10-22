@@ -45,7 +45,14 @@ export function createApp(): Application {
   // CORS
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || config.server.corsOrigins.includes(origin)) {
+      if (
+        !origin ||
+        config.server.corsOrigins.includes('*') ||
+        config.server.corsOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1')
+      ) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: Origin ${origin} not allowed`));
