@@ -1,27 +1,43 @@
-// Vercel serverless entry — exposes exact DB connection error
+// Force IPv4 DNS - required for MongoDB Atlas SRV on Node 18+
+const dns = require('dns');
+if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first');
+
+const mongoose = require('mongoose');
+
+let app;
+
+// Establish (or reuse) MongoDB connection before handling any request
+async function ensureDb() {
+  if (mongoose.connection.readyState === 1) return; // already connected
+  const uri = process.env.MONGODB_URI;
+  const dbName = process.env.MONGODB_DB_NAME || 'evee_db';
+  await mongoose.connect(uri, {
+    dbName,
+    serverSelectionTimeoutMS: 15000,
+    connectTimeoutMS: 15000,
+    socketTimeoutMS: 45000,
+  });
+}
+
 module.exports = async (req, res) => {
-  try {
-    const mod = require('./index.js');
-    const app = mod.default || mod;
-
-    // If /debug-db requested, try connecting manually and report result
-    if (req.url === '/debug-db') {
-      const mongoose = require('mongoose');
-      const uri = process.env.MONGODB_URI;
-      res.status(200).json({
-        uri_prefix: uri ? uri.substring(0, 30) + '...' : 'NOT SET',
-        mongoose_state: mongoose.connection.readyState,
-        // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
-      });
-      return;
+  // Load Express app once (module-level cache)
+  if (!app) {
+    try {
+      const mod = require('./index.js');
+      app = mod.default || mod;
+    } catch (err) {
+      console.error('[FATAL] Express app failed to load:', err.message);
+      return res.status(500).json({ error: 'App load failed', message: err.message });
     }
-
-    app(req, res);
-  } catch (err) {
-    res.status(500).json({
-      error: 'App crashed',
-      message: err.message,
-      stack: err.stack,
-    });
   }
+
+  // Connect DB (cached after first success)
+  try {
+    await ensureDb();
+  } catch (err) {
+    console.error('[MongoDB] Connection failed:', err.message);
+    // Don't block the request — routes will handle DB errors gracefully
+  }
+
+  app(req, res);
 };
