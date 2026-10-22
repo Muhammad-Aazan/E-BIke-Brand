@@ -98,11 +98,34 @@ export function createApp(): Application {
     }));
   }
 
+  // Root & Diagnostics
+  app.get('/', (_req, res) => {
+    res.json({
+      success: true,
+      service: 'EVee Crown Motors API',
+      version: '1.0.0',
+      status: 'online',
+      endpoints: {
+        health: '/api/v1/health',
+        docs: '/api/docs',
+      },
+    });
+  });
+
+  app.get('/api', (_req, res) => {
+    res.json({
+      success: true,
+      service: 'EVee Crown Motors API Gateway',
+      version: '1.0.0',
+    });
+  });
+
   // General rate limiter
   app.use('/api/', generalLimiter);
 
   // Routes
   app.use('/api/v1', healthRouter);
+  app.use('/health', healthRouter);
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/products', productRouter);

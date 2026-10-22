@@ -3,11 +3,14 @@ import dns from 'dns';
 import { config } from './index';
 import { logger } from '../common/utils/logger';
 
-// Set public DNS servers to resolve MongoDB Atlas SRV records cleanly on Windows/custom DNS
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch {
-  // Ignore in environments where setting DNS servers is not allowed
+// Only set public DNS servers on Windows local dev to resolve Atlas SRV records
+// NEVER override DNS in cloud/serverless environments like Vercel/AWS
+if (!process.env.VERCEL && process.platform === 'win32') {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch {
+    // Ignore
+  }
 }
 
 let isConnected = false;
