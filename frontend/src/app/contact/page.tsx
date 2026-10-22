@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Mail, Phone, MapPin, CheckCircle, Clock, Loader2, Calendar, AlertCircle } from 'lucide-react';
 import { Eyebrow } from '@/components/ui/Eyebrow';
@@ -9,7 +9,7 @@ import { brand } from '@/config/brand';
 import { submitContact } from '@/lib/api/contact';
 import { useAuth } from '@/components/providers/AuthProvider';
 
-export default function ContactPage() {
+function ContactContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
 
@@ -347,5 +347,13 @@ export default function ContactPage() {
         </div>
       </div>
     </Section>
+  );
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ink flex items-center justify-center font-mono text-lime">Loading contact atelier...</div>}>
+      <ContactContent />
+    </Suspense>
   );
 }

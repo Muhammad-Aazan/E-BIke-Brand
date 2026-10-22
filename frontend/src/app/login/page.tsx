@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, Mail, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
@@ -9,7 +9,7 @@ import { Section } from '@/components/ui/Section';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { brand } from '@/config/brand';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/account';
@@ -136,5 +136,13 @@ export default function LoginPage() {
         </div>
       </div>
     </Section>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ink flex items-center justify-center font-mono text-lime">Loading sign in...</div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

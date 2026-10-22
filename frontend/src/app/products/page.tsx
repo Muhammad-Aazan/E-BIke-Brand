@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, Loader2, Sparkles, Filter, X } from 'lucide-react';
 import { Eyebrow } from '@/components/ui/Eyebrow';
@@ -18,7 +18,7 @@ const CATEGORIES = [
   { id: 'part', label: 'Spare Parts' },
 ] as const;
 
-export default function ProductsPage() {
+function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -219,5 +219,13 @@ export default function ProductsPage() {
         </span>
       </div>
     </Section>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ink flex items-center justify-center font-mono text-lime">Loading Crown Fleet catalog...</div>}>
+      <ProductsContent />
+    </Suspense>
   );
 }

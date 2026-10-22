@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, Mail, User, Phone, ArrowRight, AlertCircle, Loader2, Check, LogIn } from 'lucide-react';
@@ -9,7 +9,7 @@ import { Section } from '@/components/ui/Section';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { brand } from '@/config/brand';
 
-export default function SignupPage() {
+function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/account';
@@ -240,5 +240,13 @@ export default function SignupPage() {
         </div>
       </div>
     </Section>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-ink flex items-center justify-center font-mono text-lime">Loading registration...</div>}>
+      <SignupContent />
+    </Suspense>
   );
 }
