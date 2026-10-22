@@ -941,6 +941,7 @@ __export(index_exports, {
   default: () => index_default
 });
 module.exports = __toCommonJS(index_exports);
+var import_dns2 = __toESM(require("dns"));
 
 // src/app.ts
 var import_express19 = __toESM(require("express"));
@@ -5501,6 +5502,9 @@ import_mongoose31.default.connection.on("error", (error) => {
 });
 
 // api/index.ts
+if (import_dns2.default.setDefaultResultOrder) {
+  import_dns2.default.setDefaultResultOrder("ipv4first");
+}
 var app = createApp();
 connectDatabase().catch((err) => {
   console.error("[MongoDB] Cold-start connection failed:", err?.message || err);
