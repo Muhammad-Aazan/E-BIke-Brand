@@ -94,7 +94,7 @@ export function createApp(): Application {
   // HTTP request logging
   if (!config.isTest) {
     app.use(morgan(config.isProduction ? 'combined' : 'dev', {
-      stream: { write: (message) => logger.http(message.trim()) },
+      stream: { write: (message: string) => logger.http(message.trim()) },
     }));
   }
 

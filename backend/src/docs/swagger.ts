@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+// @ts-ignore
 import swaggerUi from 'swagger-ui-express';
 import { config } from '../config';
 
