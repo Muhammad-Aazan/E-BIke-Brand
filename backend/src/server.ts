@@ -55,4 +55,8 @@ async function bootstrap(): Promise<void> {
   }
 }
 
-bootstrap();
+if (!process.env.VERCEL) {
+  bootstrap();
+}
+
+export default createApp;

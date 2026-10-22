@@ -2,10 +2,9 @@
   "name": "evee-backend",
   "version": "1.0.0",
   "description": "EVee Crown Motors API Backend",
-  "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/src/server.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
