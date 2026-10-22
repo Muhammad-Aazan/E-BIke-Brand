@@ -1,35 +1,30 @@
 import { createApp } from '../backend/src/app';
 import { connectDatabase } from '../backend/src/config/database';
 
+let isConnected = false;
 let appInstance: any = null;
 
-export default async function handler(req: any, res: any) {
-  // Direct diagnostics ping route (no DB required)
-  if (req.url === '/api/ping' || req.url === '/api/v1/ping' || req.url === '/ping') {
-    return res.status(200).json({
-      status: 'ok',
-      message: 'EVee Backend Vercel Serverless Function is running!',
-      timestamp: new Date().toISOString(),
-      node: process.version,
-      hasMongoUri: Boolean(process.env.MONGODB_URI),
-      envKeys: Object.keys(process.env).filter(
-        (k) => !k.toLowerCase().includes('secret') && !k.toLowerCase().includes('pass') && !k.toLowerCase().includes('key')
-      ),
-    });
-  }
-
-  try {
+async function init() {
+  if (!isConnected) {
     await connectDatabase();
-    if (!appInstance) {
-      appInstance = createApp();
-    }
-    return appInstance(req, res);
+    isConnected = true;
+  }
+  if (!appInstance) {
+    appInstance = createApp();
+  }
+  return appInstance;
+}
+
+export default async function handler(req: any, res: any) {
+  try {
+    const app = await init();
+    return app(req, res);
   } catch (err: any) {
-    console.error('[Vercel Handler Error]:', err);
+    console.error('[Vercel Serverless Error]:', err);
     return res.status(500).json({
       success: false,
-      error: err.message || 'Serverless or Database invocation error',
-      stack: err.stack,
+      error: err?.message || 'Serverless initialization error',
+      code: err?.code || 'SERVERLESS_ERROR',
     });
   }
 }
