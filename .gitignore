@@ -26,7 +26,9 @@ dist/
 build/
 **/build/
 
-# Logs
+# Credentials
+*.git-credentials
+*git-credentials*
 logs/
 **/logs/
 *.log
