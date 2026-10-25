@@ -167,6 +167,7 @@ export function CheckoutForm({ onCancel }: CheckoutFormProps) {
         },
         paymentProvider: 'stripe' as const,
         customerNotes: handoverNotes.trim() || undefined,
+        clientOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
       };
 
       const res = await createCheckoutOrder(payload);

@@ -76,6 +76,7 @@ export const createOrderSchema = z.object({
   nationalIdOrCnic: z.string().trim().max(50).optional(),
   deliveryHandover: deliveryHandoverSchema.optional(),
   emailVerificationToken: z.string().trim().optional(),
+  clientOrigin: z.string().trim().optional(),
 });
 
 export type ValidateCheckoutInput = z.infer<typeof validateCheckoutSchema>;

@@ -287,7 +287,8 @@ export async function calculateCheckout(
  */
 export async function createOrder(
   input: CreateOrderInput,
-  userId?: string
+  userId?: string,
+  clientOrigin?: string
 ): Promise<{
   order: IOrder;
   checkoutUrl: string;
@@ -411,6 +412,7 @@ export async function createOrder(
   const checkoutResult = await provider.createCheckout({
     orderId: order._id.toString(),
     orderNumber: order.orderNumber,
+    clientOrigin: clientOrigin || (input as any).clientOrigin,
     customer: {
       name: customerName,
       email: customerEmail,

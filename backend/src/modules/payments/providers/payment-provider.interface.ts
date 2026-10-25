@@ -23,6 +23,7 @@ export interface CreateCheckoutOptions {
   taxAmount: number;
   grandTotal: number;
   currency: string;
+  clientOrigin?: string;
   metadata?: Record<string, string>;
   idempotencyKey?: string;
 }

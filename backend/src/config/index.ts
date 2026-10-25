@@ -59,7 +59,16 @@ export const config = {
   server: {
     port: numEnv('PORT', 5000),
     apiBaseUrl: optionalEnv('API_BASE_URL', 'http://localhost:5000'),
-    frontendUrl: optionalEnv('FRONTEND_URL', 'http://localhost:3000'),
+    frontendUrl: optionalEnv(
+      'FRONTEND_URL',
+      process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : process.env.NODE_ENV === 'production'
+        ? 'https://e-b-ike-brand-ql7x.vercel.app'
+        : 'http://localhost:3000'
+    ),
     corsOrigins: optionalEnv('CORSED_ORIGINS', 'http://localhost:3000,http://localhost:3001,http://localhost:5173')
       .split(',')
       .map((s) => s.trim()),

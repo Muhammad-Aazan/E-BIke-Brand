@@ -94,7 +94,10 @@ var init_config = __esm({
       server: {
         port: numEnv("PORT", 5e3),
         apiBaseUrl: optionalEnv("API_BASE_URL", "http://localhost:5000"),
-        frontendUrl: optionalEnv("FRONTEND_URL", "http://localhost:3000"),
+        frontendUrl: optionalEnv(
+          "FRONTEND_URL",
+          process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.NODE_ENV === "production" ? "https://e-b-ike-brand-ql7x.vercel.app" : "http://localhost:3000"
+        ),
         corsOrigins: optionalEnv("CORSED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173").split(",").map((s) => s.trim())
       },
       db: {
@@ -3072,8 +3075,22 @@ var StripePaymentProvider = class {
         quantity: 1
       });
     }
-    const successUrl = `${config.server.frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_number=${options.orderNumber}`;
-    const cancelUrl = `${config.server.frontendUrl}/checkout/cancel?order_number=${options.orderNumber}`;
+    let frontendUrl = options.clientOrigin;
+    if ((!frontendUrl || frontendUrl.includes("localhost")) && process.env.VERCEL_URL) {
+      frontendUrl = `https://${process.env.VERCEL_URL}`;
+    }
+    if (!frontendUrl && process.env.NODE_ENV === "production") {
+      frontendUrl = "https://e-b-ike-brand-ql7x.vercel.app";
+    }
+    if (!frontendUrl) {
+      frontendUrl = config.server.frontendUrl;
+    }
+    if (!frontendUrl.startsWith("http://") && !frontendUrl.startsWith("https://")) {
+      frontendUrl = `https://${frontendUrl}`;
+    }
+    frontendUrl = frontendUrl.replace(/\/$/, "");
+    const successUrl = `${frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_number=${options.orderNumber}`;
+    const cancelUrl = `${frontendUrl}/checkout/cancel?order_number=${options.orderNumber}`;
     const sessionParams = {
       mode: "payment",
       line_items: lineItems,
@@ -3232,7 +3249,21 @@ var CodPaymentProvider = class {
   providerName = "cod";
   async createCheckout(options) {
     const sessionId = `cod_${options.orderNumber}_${Date.now()}`;
-    const checkoutUrl = `${config.server.frontendUrl}/checkout/success?session_id=${sessionId}&order=${options.orderNumber}&provider=cod`;
+    let frontendUrl = options.clientOrigin;
+    if ((!frontendUrl || frontendUrl.includes("localhost")) && process.env.VERCEL_URL) {
+      frontendUrl = `https://${process.env.VERCEL_URL}`;
+    }
+    if (!frontendUrl && process.env.NODE_ENV === "production") {
+      frontendUrl = "https://e-b-ike-brand-ql7x.vercel.app";
+    }
+    if (!frontendUrl) {
+      frontendUrl = config.server.frontendUrl;
+    }
+    if (!frontendUrl.startsWith("http://") && !frontendUrl.startsWith("https://")) {
+      frontendUrl = `https://${frontendUrl}`;
+    }
+    frontendUrl = frontendUrl.replace(/\/$/, "");
+    const checkoutUrl = `${frontendUrl}/checkout/success?session_id=${sessionId}&order=${options.orderNumber}&provider=cod`;
     return {
       sessionId,
       checkoutUrl,
@@ -3461,7 +3492,7 @@ async function calculateCheckout(input, userId) {
     currency: config.store.currency
   };
 }
-async function createOrder(input, userId) {
+async function createOrder(input, userId, clientOrigin) {
   if (!userId && (!input.guestEmail || !input.guestName)) {
     throw new ValidationError("Guest checkout requires both full name and email address");
   }
@@ -3556,6 +3587,7 @@ async function createOrder(input, userId) {
   const checkoutResult = await provider.createCheckout({
     orderId: order._id.toString(),
     orderNumber: order.orderNumber,
+    clientOrigin: clientOrigin || input.clientOrigin,
     customer: {
       name: customerName,
       email: customerEmail,
@@ -3625,7 +3657,22 @@ async function validateCheckout(req, res, next) {
 async function createOrder2(req, res, next) {
   try {
     const userId = req.user?.userId;
-    const result = await createOrder(req.body, userId);
+    let clientOrigin = req.body && req.body.clientOrigin || req.headers.origin;
+    if (!clientOrigin && req.headers.referer) {
+      try {
+        clientOrigin = new URL(req.headers.referer).origin;
+      } catch {
+      }
+    }
+    if (!clientOrigin && req.headers["x-forwarded-host"]) {
+      const proto = req.headers["x-forwarded-proto"] || "https";
+      clientOrigin = `${proto}://${req.headers["x-forwarded-host"]}`;
+    }
+    if (!clientOrigin && req.headers.host) {
+      const proto = req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
+      clientOrigin = `${proto}://${req.headers.host}`;
+    }
+    const result = await createOrder(req.body, userId, clientOrigin);
     successResponse(
       res,
       {
@@ -3681,7 +3728,8 @@ var createOrderSchema = import_zod7.z.object({
   guestPhone: import_zod7.z.string().trim().optional(),
   nationalIdOrCnic: import_zod7.z.string().trim().max(50).optional(),
   deliveryHandover: deliveryHandoverSchema.optional(),
-  emailVerificationToken: import_zod7.z.string().trim().optional()
+  emailVerificationToken: import_zod7.z.string().trim().optional(),
+  clientOrigin: import_zod7.z.string().trim().optional()
 });
 
 // src/modules/checkout/checkout.routes.ts

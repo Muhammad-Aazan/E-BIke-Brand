@@ -93,8 +93,27 @@ export class StripePaymentProvider implements IPaymentProvider {
       });
     }
 
-    const successUrl = `${config.server.frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_number=${options.orderNumber}`;
-    const cancelUrl = `${config.server.frontendUrl}/checkout/cancel?order_number=${options.orderNumber}`;
+    // Dynamically resolve frontend URL to current Vercel production domain or client origin
+    let frontendUrl = options.clientOrigin;
+    if (
+      (!frontendUrl || frontendUrl.includes('localhost')) &&
+      process.env.VERCEL_URL
+    ) {
+      frontendUrl = `https://${process.env.VERCEL_URL}`;
+    }
+    if (!frontendUrl && process.env.NODE_ENV === 'production') {
+      frontendUrl = 'https://e-b-ike-brand-ql7x.vercel.app';
+    }
+    if (!frontendUrl) {
+      frontendUrl = config.server.frontendUrl;
+    }
+    if (!frontendUrl.startsWith('http://') && !frontendUrl.startsWith('https://')) {
+      frontendUrl = `https://${frontendUrl}`;
+    }
+    frontendUrl = frontendUrl.replace(/\/$/, '');
+
+    const successUrl = `${frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_number=${options.orderNumber}`;
+    const cancelUrl = `${frontendUrl}/checkout/cancel?order_number=${options.orderNumber}`;
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'payment',

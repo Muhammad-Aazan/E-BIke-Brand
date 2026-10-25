@@ -44,6 +44,7 @@ export interface CheckoutPayload {
   };
   paymentProvider: 'stripe' | 'cod' | 'bank_transfer';
   customerNotes?: string;
+  clientOrigin?: string;
 }
 
 export interface CreateOrderResponse {

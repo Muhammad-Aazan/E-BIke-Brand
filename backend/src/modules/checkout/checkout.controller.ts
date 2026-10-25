@@ -49,7 +49,28 @@ export async function createOrder(
 ): Promise<void> {
   try {
     const userId = req.user?.userId;
-    const result = await checkoutService.createOrder(req.body, userId);
+
+    // Dynamically detect client origin (payload, Vercel domain, or localhost)
+    let clientOrigin: string | undefined =
+      (req.body && req.body.clientOrigin) ||
+      (req.headers.origin as string);
+    if (!clientOrigin && req.headers.referer) {
+      try {
+        clientOrigin = new URL(req.headers.referer).origin;
+      } catch {
+        // ignore invalid URL
+      }
+    }
+    if (!clientOrigin && req.headers['x-forwarded-host']) {
+      const proto = req.headers['x-forwarded-proto'] || 'https';
+      clientOrigin = `${proto}://${req.headers['x-forwarded-host']}`;
+    }
+    if (!clientOrigin && req.headers.host) {
+      const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+      clientOrigin = `${proto}://${req.headers.host}`;
+    }
+
+    const result = await checkoutService.createOrder(req.body, userId, clientOrigin);
     successResponse(
       res,
       {
