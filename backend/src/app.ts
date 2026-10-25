@@ -142,6 +142,24 @@ export function createApp(): Application {
   app.use('/api/v1/shipping', shippingRouter);
   app.use('/api/v1/contact', contactRouter);
   app.use('/api/v1/upload', uploadRouter);
+
+  // Dual alias for /api without v1 prefix
+  app.use('/api/auth', authRouter);
+  app.use('/api/users', userRouter);
+  app.use('/api/products', productRouter);
+  app.use('/api/categories', categoryRouter);
+  app.use('/api/cart', cartRouter);
+  app.use('/api/checkout', checkoutRouter);
+  app.use('/api/orders', orderRouter);
+  app.use('/api/payments', paymentRouter);
+  app.use('/api/coupons', couponRouter);
+  app.use('/api/reviews', reviewRouter);
+  app.use('/api/wishlist', wishlistRouter);
+  app.use('/api/admin', adminRouter);
+  app.use('/api/analytics', analyticsRouter);
+  app.use('/api/shipping', shippingRouter);
+  app.use('/api/contact', contactRouter);
+  app.use('/api/upload', uploadRouter);
   app.use('/api/docs', swaggerRouter);
 
   // 404 handler

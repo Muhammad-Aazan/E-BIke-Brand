@@ -23,49 +23,55 @@ export class StripePaymentProvider implements IPaymentProvider {
     });
   }
 
+  async retrieveCheckoutSession(sessionId: string): Promise<Stripe.Checkout.Session> {
+    return this.stripe.checkout.sessions.retrieve(sessionId);
+  }
+
   async createCheckout(options: CreateCheckoutOptions): Promise<CheckoutSessionResult> {
-    const isPlaceholder =
+    if (
       !config.stripe.secretKey ||
-      config.stripe.secretKey.startsWith('sk_test_placeholder') ||
-      config.stripe.secretKey === 'sk_test_...' ||
-      config.stripe.secretKey === 'dummy_key_for_initialization';
-
-    if (isPlaceholder) {
-      logger.info(
-        `[STRIPE TEST MODE] Generating interactive Stripe payment page for order ${options.orderNumber}`
+      config.stripe.secretKey === 'dummy_key_for_initialization' ||
+      config.stripe.secretKey === 'sk_test_...'
+    ) {
+      throw new PaymentError(
+        'Real Stripe Secret Key is not configured. Please set STRIPE_SECRET_KEY in your backend .env file.'
       );
-      const testSessionId = `cs_test_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const checkoutUrl = `${config.server.frontendUrl}/checkout/pay?session_id=${testSessionId}&order_number=${options.orderNumber}&amount=${options.grandTotal}&currency=${options.currency}`;
-
-      return {
-        sessionId: testSessionId,
-        checkoutUrl,
-        provider: this.providerName,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-      };
     }
 
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = options.items.map((item) => ({
-      price_data: {
-        currency: options.currency.toLowerCase(),
-        product_data: {
-          name: item.name,
-          description: item.description,
-          images: item.images && item.images.length > 0 ? [item.images[0]] : undefined,
+    const currency = (config.stripe.currency || options.currency).toLowerCase();
+
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = options.items.map((item) => {
+      // Stripe requires absolute public URLs (http/https) without localhost for images
+      const validImages = item.images?.filter(
+        (img) =>
+          typeof img === 'string' &&
+          img.startsWith('http') &&
+          !img.includes('localhost') &&
+          !img.includes('127.0.0.1')
+      );
+
+      return {
+        price_data: {
+          currency,
+          product_data: {
+            name: item.name || 'Electric Vehicle / Equipment',
+            description: item.description?.substring(0, 500) || undefined,
+            images: validImages && validImages.length > 0 ? [validImages[0]] : undefined,
+          },
+          unit_amount: item.unitAmount,
         },
-        unit_amount: item.unitAmount,
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity,
+      };
+    });
 
     // Add shipping as a separate line item if present
     if (options.shippingFee > 0) {
       lineItems.push({
         price_data: {
-          currency: options.currency.toLowerCase(),
+          currency,
           product_data: {
-            name: 'Shipping Fee',
-            description: 'Delivery charge',
+            name: 'White-Glove Vehicle Delivery & Handover Dispatch',
+            description: 'Insured carrier delivery directly to your specified address',
           },
           unit_amount: options.shippingFee,
         },
@@ -77,7 +83,7 @@ export class StripePaymentProvider implements IPaymentProvider {
     if (options.taxAmount > 0) {
       lineItems.push({
         price_data: {
-          currency: options.currency.toLowerCase(),
+          currency,
           product_data: {
             name: 'Tax / GST',
           },
@@ -86,6 +92,9 @@ export class StripePaymentProvider implements IPaymentProvider {
         quantity: 1,
       });
     }
+
+    const successUrl = `${config.server.frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_number=${options.orderNumber}`;
+    const cancelUrl = `${config.server.frontendUrl}/checkout/cancel?order_number=${options.orderNumber}`;
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'payment',
@@ -97,9 +106,11 @@ export class StripePaymentProvider implements IPaymentProvider {
         orderNumber: options.orderNumber,
         ...options.metadata,
       },
-      success_url: config.stripe.successUrl.replace('{CHECKOUT_SESSION_ID}', '{CHECKOUT_SESSION_ID}'),
-      cancel_url: config.stripe.cancelUrl,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     };
+
+    logger.info(`[STRIPE] Creating Checkout Session for order ${options.orderNumber} in currency ${currency}`);
 
     const session = await retryWithBackoff(
       () =>
@@ -111,8 +122,10 @@ export class StripePaymentProvider implements IPaymentProvider {
     );
 
     if (!session.url) {
-      throw new PaymentError('Failed to generate Stripe checkout URL');
+      throw new PaymentError('Failed to generate official Stripe checkout URL');
     }
+
+    logger.info(`[STRIPE] Checkout Session created: ${session.id}`);
 
     return {
       sessionId: session.id,
@@ -155,7 +168,7 @@ export class StripePaymentProvider implements IPaymentProvider {
         const session = stripeEvent.data.object as Stripe.Checkout.Session;
         status = session.payment_status === 'paid' ? 'paid' : 'unknown';
         orderNumber = session.client_reference_id || (session.metadata?.orderNumber as string);
-        paymentIntentId = session.payment_intent as string;
+        paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
         amount = session.amount_total || undefined;
         currency = session.currency?.toUpperCase();
         break;

@@ -10,14 +10,12 @@ import { getAllProducts, getProductBySlug } from '@/lib/api/products';
 import { formatPrice } from '@/lib/format';
 import { brand } from '@/config/brand';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 type Props = {
   params: Promise<{ slug: string }>;
 };
-
-export async function generateStaticParams() {
-  const products = await getAllProducts();
-  return products.map((p) => ({ slug: p.slug }));
-}
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;

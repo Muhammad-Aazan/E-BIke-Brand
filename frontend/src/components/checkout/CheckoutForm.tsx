@@ -42,7 +42,6 @@ export function CheckoutForm({ onCancel }: CheckoutFormProps) {
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [otpMessage, setOtpMessage] = useState<string | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
-  const [testOtpNotice, setTestOtpNotice] = useState<string | null>(null);
 
   // Delivery Address
   const [addressLine1, setAddressLine1] = useState('');
@@ -71,17 +70,12 @@ export function CheckoutForm({ onCancel }: CheckoutFormProps) {
     setSendingOtp(true);
     setOtpError(null);
     setOtpMessage(null);
-    setTestOtpNotice(null);
 
     try {
       const res = await sendCheckoutOtp(email, fullName);
       setOtpSent(true);
-      setOtpMessage(res.message || 'Verification code sent to your email.');
-      if (res.testOtp) {
-        setTestOtpNotice(res.testOtp);
-        // Pre-fill for instant development testing
-        setOtpCode(res.testOtp);
-      }
+      setOtpCode('');
+      setOtpMessage(res.message || 'Verification code sent to your Gmail/inbox.');
     } catch (err: any) {
       setOtpError(err.message || 'Failed to dispatch verification code. Please check email address.');
     } finally {
@@ -335,16 +329,6 @@ export function CheckoutForm({ onCancel }: CheckoutFormProps) {
                   <span>Verify Email</span>
                 </button>
               </div>
-
-              {testOtpNotice && (
-                <div className="mt-1 font-mono text-[11px] text-dim flex items-center gap-2">
-                  <span className="text-lime">Developer / Test Mode Code:</span>
-                  <span className="bg-surface px-2 py-0.5 border border-line text-lime font-bold">
-                    {testOtpNotice}
-                  </span>
-                  <span className="text-[10px] text-muted">(Auto-filled for testing)</span>
-                </div>
-              )}
             </div>
           )}
 

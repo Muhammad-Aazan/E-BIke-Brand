@@ -151,36 +151,49 @@ export async function createProduct(data: CreateProductInput): Promise<IProduct>
 }
 
 export async function updateProduct(id: string, data: UpdateProductInput): Promise<IProduct> {
-  const product = await Product.findById(id);
+  const query = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+  const product = await Product.findOne(query);
   if (!product) throw new NotFoundError('Product');
 
+  const productId = product._id.toString();
+
   if (data.slug && data.slug !== product.slug) {
-    const exists = await Product.findOne({ slug: data.slug, _id: { $ne: id } });
+    const exists = await Product.findOne({ slug: data.slug, _id: { $ne: productId } });
     if (exists) throw new ConflictError('Slug already in use');
   }
 
   if (data.sku && data.sku !== product.sku) {
-    const exists = await Product.findOne({ sku: data.sku, _id: { $ne: id } });
+    const exists = await Product.findOne({ sku: data.sku, _id: { $ne: productId } });
     if (exists) throw new ConflictError('SKU already in use');
   }
 
   if (data.category) {
-    const category = await Category.findById(data.category);
-    if (!category) throw new NotFoundError('Category');
-    (product as any).category = new mongoose.Types.ObjectId(data.category);
+    if (mongoose.isValidObjectId(data.category)) {
+      const category = await Category.findById(data.category);
+      if (!category) throw new NotFoundError('Category');
+      (product as any).category = category._id;
+    } else {
+      const category = await Category.findOne({ slug: data.category });
+      if (category) {
+        (product as any).category = category._id;
+      }
+    }
   }
 
   const { category: _cat, ...otherUpdates } = data;
   Object.assign(product, otherUpdates);
-  return product.save();
+  await product.save();
+  return (await Product.findById(product._id).populate('category', 'name slug')) || product;
 }
 
 export async function archiveProduct(id: string): Promise<void> {
-  const result = await Product.findByIdAndUpdate(id, { isActive: false });
+  const query = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+  const result = await Product.findOneAndUpdate(query, { isActive: false });
   if (!result) throw new NotFoundError('Product');
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-  const result = await Product.findByIdAndDelete(id);
+  const query = mongoose.isValidObjectId(id) ? { _id: id } : { slug: id };
+  const result = await Product.findOneAndDelete(query);
   if (!result) throw new NotFoundError('Product');
 }

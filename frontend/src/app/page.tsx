@@ -9,7 +9,8 @@ import { Journal } from '@/components/home/Journal';
 import { Invitation } from '@/components/home/Invitation';
 import { getFeaturedMotorcycles } from '@/lib/api/products';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function HomePage() {
   const products = await getFeaturedMotorcycles(3);

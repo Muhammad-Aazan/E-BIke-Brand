@@ -15,6 +15,7 @@ productRouter.get('/:slug', optionalAuth, productController.getProductBySlug);
 
 // Admin only
 productRouter.post('/', authenticate, authorize('admin'), validate(createProductSchema), productController.createProduct);
+productRouter.put('/:id', authenticate, authorize('admin'), validate(updateProductSchema), productController.updateProduct);
 productRouter.patch('/:id', authenticate, authorize('admin'), validate(updateProductSchema), productController.updateProduct);
 productRouter.patch('/:id/archive', authenticate, authorize('admin'), productController.archiveProduct);
 productRouter.delete('/:id', authenticate, authorize('admin'), productController.deleteProduct);

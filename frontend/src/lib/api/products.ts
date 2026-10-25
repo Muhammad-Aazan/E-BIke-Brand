@@ -87,31 +87,37 @@ export const getCategories = () => api<Category[]>(endpoints.products.categories
 export async function getFeaturedMotorcycles(limit = 3): Promise<Product[]> {
   try {
     const { items } = await getProducts({ productType: 'motorcycle', featured: true, limit });
-    if (items && items.length) return items.slice(0, limit);
-  } catch {
-    /* fallback to seed */
+    if (items && items.length > 0) return items.slice(0, limit);
+    // If no motorcycle is explicitly marked featured, fetch active motorcycles from database
+    const all = await getProducts({ productType: 'motorcycle', limit });
+    if (all && Array.isArray(all.items) && all.items.length > 0) {
+      return all.items.slice(0, limit);
+    }
+    return [];
+  } catch (err) {
+    console.warn('Backend API unavailable for featured motorcycles:', err);
+    return seedMotorcycles.slice(0, limit);
   }
-  return seedMotorcycles.slice(0, limit);
 }
 
 export async function getAllMotorcycles(): Promise<Product[]> {
   try {
     const { items } = await getProducts({ productType: 'motorcycle', limit: 100 });
-    if (items && items.length) return items;
-  } catch {
-    /* fallback to seed */
+    return items ?? [];
+  } catch (err) {
+    console.warn('Backend API unavailable for motorcycles:', err);
+    return seedMotorcycles;
   }
-  return seedMotorcycles;
 }
 
 export async function getAllAccessories(): Promise<Product[]> {
   try {
     const { items } = await getProducts({ productType: 'accessory', limit: 100 });
-    if (items && items.length) return items;
-  } catch {
-    /* fallback */
+    return items ?? [];
+  } catch (err) {
+    console.warn('Backend API unavailable for accessories:', err);
+    return [];
   }
-  return [];
 }
 
 export async function getAllProducts(type?: string): Promise<Product[]> {
@@ -121,19 +127,20 @@ export async function getAllProducts(type?: string): Promise<Product[]> {
       query.productType = type;
     }
     const { items } = await getProducts(query);
-    if (items && items.length) return items;
-  } catch {
-    /* fallback */
+    return items ?? [];
+  } catch (err) {
+    console.warn('Backend API unavailable for products:', err);
+    return seedMotorcycles;
   }
-  return seedMotorcycles;
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   try {
     const item = await getProduct(slug);
     if (item && item.id) return item;
-  } catch {
-    /* fallback to seed */
+    return null;
+  } catch (err) {
+    console.warn(`Product slug '${slug}' not found or API error:`, err);
+    return null;
   }
-  return seedMotorcycles.find((p) => p.slug === slug) ?? null;
 }

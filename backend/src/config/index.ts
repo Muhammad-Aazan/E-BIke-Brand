@@ -43,7 +43,9 @@ export const config = {
     port: numEnv('PORT', 5000),
     apiBaseUrl: optionalEnv('API_BASE_URL', 'http://localhost:5000'),
     frontendUrl: optionalEnv('FRONTEND_URL', 'http://localhost:3000'),
-    corsOrigins: optionalEnv('CORSED_ORIGINS', 'http://localhost:3000').split(',').map(s => s.trim()),
+    corsOrigins: optionalEnv('CORSED_ORIGINS', 'http://localhost:3000,http://localhost:3001,http://localhost:5173')
+      .split(',')
+      .map((s) => s.trim()),
   },
 
   db: {
@@ -76,7 +78,7 @@ export const config = {
     windowMs: numEnv('RATE_LIMIT_WINDOW_MS', 60_000),
     general: numEnv('RATE_LIMIT_GENERAL_MAX', 100),
     auth: numEnv('RATE_LIMIT_AUTH_MAX', 10),
-    checkout: numEnv('RATE_LIMIT_CHECKOUT_MAX', 5),
+    checkout: numEnv('RATE_LIMIT_CHECKOUT_MAX', 10),
     search: numEnv('RATE_LIMIT_SEARCH_MAX', 30),
   },
 
@@ -89,7 +91,10 @@ export const config = {
     publishableKey: optionalEnv('STRIPE_PUBLISHABLE_KEY', ''),
     webhookSecret: optionalEnv('STRIPE_WEBHOOK_SECRET', ''),
     currency: optionalEnv('STRIPE_CURRENCY', 'pkr'),
-    successUrl: optionalEnv('STRIPE_SUCCESS_URL', 'http://localhost:3000/checkout/success?session_id={CHECKOUT_SESSION_ID}'),
+    successUrl: optionalEnv(
+      'STRIPE_SUCCESS_URL',
+      'http://localhost:3000/checkout/success?session_id={CHECKOUT_SESSION_ID}'
+    ),
     cancelUrl: optionalEnv('STRIPE_CANCEL_URL', 'http://localhost:3000/checkout/cancel'),
     apiVersion: optionalEnv('STRIPE_API_VERSION', '2025-06-30') as '2025-06-30',
   },
@@ -108,13 +113,17 @@ export const config = {
   },
 
   smtp: {
-    host: optionalEnv('SMTP_HOST', 'smtp.mailtrap.io'),
-    port: numEnv('SMTP_PORT', 587),
-    secure: boolEnv('SMTP_SECURE', false),
-    user: optionalEnv('SMTP_USER', ''),
-    pass: optionalEnv('SMTP_PASS', ''),
+    service: optionalEnv('SMTP_SERVICE', ''),
+    host: optionalEnv('SMTP_HOST', 'smtp.gmail.com'),
+    port: numEnv('SMTP_PORT', 465),
+    secure: boolEnv('SMTP_SECURE', true),
+    user: optionalEnv('GMAIL_USER', optionalEnv('SMTP_USER', '')).trim(),
+    pass: optionalEnv('GMAIL_APP_PASSWORD', optionalEnv('SMTP_PASS', '')).replace(/\s+/g, ''),
     fromName: optionalEnv('EMAIL_FROM_NAME', 'EVee by Crown Motors'),
-    fromAddress: optionalEnv('EMAIL_FROM_ADDRESS', 'noreply@evee.pk'),
+    fromAddress: optionalEnv(
+      'EMAIL_FROM_ADDRESS',
+      optionalEnv('GMAIL_USER', optionalEnv('SMTP_USER', 'noreply@evee.pk'))
+    ).trim(),
   },
 
   store: {

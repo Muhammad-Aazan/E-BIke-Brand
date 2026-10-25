@@ -37,13 +37,14 @@ function SuccessContent() {
     // Clear the cart on successful checkout
     clear();
 
-    if (!orderNumber) {
+    const identifier = orderNumber || sessionId;
+    if (!identifier) {
       setLoading(false);
       return;
     }
 
     let isMounted = true;
-    getPaymentStatus(orderNumber)
+    getPaymentStatus(identifier)
       .then((res) => {
         if (isMounted) {
           setPaymentData(res.paymentStatus);
@@ -78,7 +79,7 @@ function SuccessContent() {
           Welcome to the Fleet.
         </h1>
         <p className="max-w-[540px] font-body text-[15px] leading-[1.7] text-muted">
-          Your payment has been successfully processed through <span className="text-lime font-mono">Stripe (Test Mode)</span>. Your build slot is locked, and our white-glove concierge is preparing your handover.
+          Your payment has been successfully processed through <span className="text-lime font-mono">Stripe Secure Checkout</span>. Your vehicle build slot is locked, and our white-glove concierge is preparing your handover.
         </p>
       </div>
 

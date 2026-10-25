@@ -47,7 +47,6 @@ export interface CalculatedCheckout {
 export async function sendCheckoutOtp(input: SendCheckoutOtpInput): Promise<{
   success: boolean;
   message: string;
-  testOtp?: string;
 }> {
   const normalizedEmail = input.email.toLowerCase().trim();
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -62,20 +61,22 @@ export async function sendCheckoutOtp(input: SendCheckoutOtpInput): Promise<{
     isVerified: false,
   });
 
-  logger.info(`[CHECKOUT OTP] Verification code generated for ${normalizedEmail}: ${otp}`);
+  logger.info(`[CHECKOUT OTP] Verification code generated for ${normalizedEmail}`);
 
-  // Dispatch email notification
+  // Dispatch real email notification via Gmail / SMTP
   try {
     await sendCheckoutOtpEmail(normalizedEmail, input.fullName || 'Customer', otp);
     logger.info(`[CHECKOUT OTP] Verification email dispatched to ${normalizedEmail}`);
   } catch (err: any) {
-    logger.warn(`[CHECKOUT OTP] SMTP dispatch skipped or failed (${err.message}). Code logged to console: ${otp}`);
+    logger.error(`[CHECKOUT OTP] Real email delivery failed: ${err.message}`);
+    throw new ValidationError(
+      `Could not send verification code to ${normalizedEmail}. ${err.message}`
+    );
   }
 
   return {
     success: true,
-    message: `Verification code sent to ${normalizedEmail}. Valid for 10 minutes.`,
-    testOtp: config.isDevelopment ? otp : undefined,
+    message: `A 6-digit verification code has been dispatched to ${normalizedEmail}. Please check your Gmail/inbox.`,
   };
 }
 

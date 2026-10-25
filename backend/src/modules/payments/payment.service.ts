@@ -193,7 +193,7 @@ async function handlePaymentRefunded(event: VerifiedWebhookEvent): Promise<void>
 /**
  * Retrieve current authoritative payment status for the success / confirmation page.
  */
-export async function getPaymentStatus(orderNumber: string): Promise<{
+export async function getPaymentStatus(orderIdentifier: string): Promise<{
   orderNumber: string;
   paymentStatus: string;
   orderStatus: string;
@@ -202,31 +202,44 @@ export async function getPaymentStatus(orderNumber: string): Promise<{
   paidAt?: Date;
   order?: any;
 }> {
-  let order = await Order.findOne({ orderNumber });
+  let order = await Order.findOne({
+    $or: [{ orderNumber: orderIdentifier }, { paymentReference: orderIdentifier }],
+  });
   if (!order) throw new NotFoundError('Order');
 
-  // Handle test mode payment simulation auto-confirmation
-  if (order.paymentStatus === 'pending' && order.paymentReference?.startsWith('cs_test_')) {
-    logger.info(`[STRIPE TEST MODE] Auto-confirming test payment for order ${orderNumber}`);
+  // Verify directly with real Stripe session if pending
+  if (order.paymentStatus === 'pending' && order.paymentReference) {
     try {
-      await handlePaymentSuccess({
-        eventId: `evt_sim_${Date.now()}`,
-        eventType: 'checkout.session.completed',
-        provider: 'stripe',
-        orderNumber: order.orderNumber,
-        paymentIntentId: `pi_sim_${Date.now()}`,
-        amount: order.grandTotal,
-        currency: order.currency,
-        status: 'paid',
-        payload: { simulated: true },
-      });
-      order = await Order.findOne({ orderNumber });
+      const stripeProvider = getPaymentProvider('stripe') as any;
+      if (typeof stripeProvider.retrieveCheckoutSession === 'function') {
+        const session = await stripeProvider.retrieveCheckoutSession(order.paymentReference);
+        if (session && session.payment_status === 'paid') {
+          logger.info(
+            `[STRIPE CONFIRMATION] Session ${order.paymentReference} verified as paid for order ${order.orderNumber}`
+          );
+          await handlePaymentSuccess({
+            eventId: `evt_session_${session.id}`,
+            eventType: 'checkout.session.completed',
+            provider: 'stripe',
+            orderNumber: order.orderNumber,
+            paymentIntentId:
+              (typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : session.payment_intent?.id) || `pi_${session.id}`,
+            amount: session.amount_total || order.grandTotal,
+            currency: session.currency?.toUpperCase() || order.currency,
+            status: 'paid',
+            payload: session as any,
+          });
+          order = await Order.findOne({ orderNumber: order.orderNumber });
+        }
+      }
     } catch (err: any) {
-      logger.error('Error auto-confirming simulated payment:', err);
+      logger.warn(`Could not verify checkout session directly from Stripe: ${err.message}`);
     }
   }
 
-  const payment = await Payment.findOne({ orderNumber });
+  const payment = await Payment.findOne({ orderNumber: order!.orderNumber });
 
   return {
     orderNumber: order!.orderNumber,
