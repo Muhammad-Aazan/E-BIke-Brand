@@ -350,7 +350,9 @@ export async function createOrder(
     orderNumber,
     user: userId ? new mongoose.Types.ObjectId(userId) : undefined,
     guestEmail: userId ? undefined : input.guestEmail,
-    guestName: userId ? undefined : input.guestName,
+    // Always store the name provided at checkout time (shippingAddress.fullName or guestName)
+    // so admin always sees the actual buyer name, not the account profile name
+    guestName: input.guestName || input.shippingAddress.fullName || undefined,
     items: calculated.items,
     shippingAddress: input.shippingAddress,
     billingAddress: input.billingAddress || input.shippingAddress,

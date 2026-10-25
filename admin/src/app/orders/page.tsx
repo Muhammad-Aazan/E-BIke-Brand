@@ -218,7 +218,12 @@ export default function AdminOrdersPage() {
                       {formatDate(ord.createdAt)}
                     </td>
                     <td className="py-4 px-5">
-                      <p className="font-medium text-fg">{ord.guestName || ord.shippingAddress?.fullName || 'Client'}</p>
+                      <p className="font-medium text-fg">
+                        {ord.guestName || ord.shippingAddress?.fullName || ord.user?.name || 'Client'}
+                      </p>
+                      <p className="font-mono text-[11px] text-dim">
+                        {ord.guestEmail || ord.user?.email || ''}
+                      </p>
                       <p className="font-mono text-[11px] text-dim">{ord.shippingAddress?.phone || 'No phone'}</p>
                     </td>
                     <td className="py-4 px-5">
@@ -292,6 +297,23 @@ export default function AdminOrdersPage() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto flex flex-col gap-6 text-[13px]">
+              {/* Customer Info Banner */}
+              <div className="bg-lime/5 border border-lime/20 p-4 rounded-lg flex flex-col gap-1">
+                <span className="font-mono text-[11px] text-lime uppercase flex items-center gap-1.5 font-semibold mb-1">
+                  <User className="size-3.5" />
+                  Purchasing Customer
+                </span>
+                <p className="font-bold text-fg text-[15px]">
+                  {selectedOrder.guestName || selectedOrder.shippingAddress?.fullName || selectedOrder.user?.name || 'Guest Customer'}
+                </p>
+                <p className="font-mono text-[12px] text-muted">
+                  {selectedOrder.guestEmail || selectedOrder.user?.email || 'No email recorded'}
+                </p>
+                <p className="font-mono text-[12px] text-muted">
+                  Phone: {selectedOrder.metadata?.vehicleHandover?.guestPhone || selectedOrder.shippingAddress?.phone || 'N/A'}
+                </p>
+              </div>
+
               {/* Delivery & Handover Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-surface/50 border border-line p-4 rounded-lg flex flex-col gap-2">

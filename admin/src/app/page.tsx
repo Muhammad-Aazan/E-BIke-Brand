@@ -363,7 +363,7 @@ export default function AdminDashboardPage() {
                       {ord.orderNumber}
                     </td>
                     <td className="py-4 px-6">
-                      <p className="font-medium text-fg">{ord.guestName || ord.user?.name || 'Customer'}</p>
+                      <p className="font-medium text-fg">{ord.guestName || ord.shippingAddress?.fullName || ord.user?.name || 'Customer'}</p>
                       <p className="font-mono text-[11px] text-dim">{ord.guestEmail || ord.user?.email}</p>
                     </td>
                     <td className="py-4 px-6">

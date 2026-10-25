@@ -3532,7 +3532,9 @@ async function createOrder(input, userId, clientOrigin) {
     orderNumber,
     user: userId ? new import_mongoose22.default.Types.ObjectId(userId) : void 0,
     guestEmail: userId ? void 0 : input.guestEmail,
-    guestName: userId ? void 0 : input.guestName,
+    // Always store the name provided at checkout time (shippingAddress.fullName or guestName)
+    // so admin always sees the actual buyer name, not the account profile name
+    guestName: input.guestName || input.shippingAddress.fullName || void 0,
     items: calculated.items,
     shippingAddress: input.shippingAddress,
     billingAddress: input.billingAddress || input.shippingAddress,
