@@ -7,7 +7,8 @@ import { logger } from '../common/utils/logger';
 // NEVER override DNS in cloud/serverless environments like Vercel/AWS
 if (!process.env.VERCEL && process.platform === 'win32') {
   try {
-    dns.setServers(['8.8.8.8', '1.1.1.1']);
+    dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+    dns.setDefaultResultOrder('ipv4first');
   } catch {
     // Ignore
   }

@@ -5621,7 +5621,8 @@ var import_dns = __toESM(require("dns"));
 init_config();
 if (!process.env.VERCEL && process.platform === "win32") {
   try {
-    import_dns.default.setServers(["8.8.8.8", "1.1.1.1"]);
+    import_dns.default.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
+    import_dns.default.setDefaultResultOrder("ipv4first");
   } catch {
   }
 }
