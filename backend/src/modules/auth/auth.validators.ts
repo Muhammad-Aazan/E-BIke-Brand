@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const phoneRegex = /^(?:\+92|92|0)?3[0-9]{2}[0-9]{7}$|^\+?[1-9]\d{6,14}$/;
+export const phoneRegex = /^[\d\s+\-().]{7,20}$/;
 export const phoneErrorMessage =
   'Please enter a valid phone number (e.g. 03001234567 or +923001234567)';
 

@@ -1837,7 +1837,7 @@ function authorize(...roles) {
 
 // src/modules/auth/auth.validators.ts
 var import_zod2 = require("zod");
-var phoneRegex = /^(?:\+92|92|0)?3[0-9]{2}[0-9]{7}$|^\+?[1-9]\d{6,14}$/;
+var phoneRegex = /^[\d\s+\-().]{7,20}$/;
 var phoneErrorMessage = "Please enter a valid phone number (e.g. 03001234567 or +923001234567)";
 var passwordSchema = import_zod2.z.string().min(8, "Password must be at least 8 characters long").max(128, "Password cannot exceed 128 characters").regex(/[A-Z]/, "Password must contain at least one uppercase letter (A-Z)").regex(/[a-z]/, "Password must contain at least one lowercase letter (a-z)").regex(/[0-9]/, "Password must contain at least one number (0-9)").regex(/[^A-Za-z0-9]/, "Password must contain at least one special character (!@#$%^&*)");
 var registerSchema = import_zod2.z.object({

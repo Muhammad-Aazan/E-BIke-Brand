@@ -138,10 +138,11 @@ export function CheckoutForm({ onCancel }: CheckoutFormProps) {
     setSubmitting(true);
 
     try {
+      const cleanPhone = phone.trim().replace(/[^\d+]/g, '');
       const payload = {
         guestName: fullName.trim(),
         guestEmail: email.trim().toLowerCase(),
-        guestPhone: phone.trim(),
+        guestPhone: cleanPhone,
         nationalIdOrCnic: nationalIdOrCnic.trim() || undefined,
         emailVerificationToken: verificationToken,
         items: lines.map((l) => ({
@@ -150,7 +151,7 @@ export function CheckoutForm({ onCancel }: CheckoutFormProps) {
         })),
         shippingAddress: {
           fullName: fullName.trim(),
-          phone: phone.trim(),
+          phone: cleanPhone,
           addressLine1: addressLine1.trim(),
           addressLine2: addressLine2.trim() || undefined,
           city: city.trim(),
