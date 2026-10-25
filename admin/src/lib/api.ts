@@ -1,4 +1,15 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.trim().length > 0) {
+    return process.env.NEXT_PUBLIC_API_URL.trim();
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:5000/api/v1';
+    }
+    return `${window.location.origin}/api/v1`;
+  }
+  return 'http://localhost:5000/api/v1';
+}
 
 export class AdminApiError extends Error {
   constructor(
@@ -19,8 +30,9 @@ export interface ApiOptions extends Omit<RequestInit, 'body'> {
 }
 
 function buildUrl(path: string, query?: Query) {
-  const base = BASE.endsWith('/') ? BASE : `${BASE}/`;
-  const url = new URL(path.replace(/^\//, ''), base);
+  const base = getBaseUrl();
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  const url = new URL(path.replace(/^\//, ''), normalizedBase);
   Object.entries(query ?? {}).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== '') {
       url.searchParams.set(k, String(v));

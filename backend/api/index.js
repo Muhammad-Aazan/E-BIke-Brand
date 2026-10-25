@@ -80,7 +80,7 @@ var init_config = __esm({
         port: numEnv("PORT", 5e3),
         apiBaseUrl: optionalEnv("API_BASE_URL", "http://localhost:5000"),
         frontendUrl: optionalEnv("FRONTEND_URL", "http://localhost:3000"),
-        corsOrigins: optionalEnv("CORSED_ORIGINS", "http://localhost:3000").split(",").map((s) => s.trim())
+        corsOrigins: optionalEnv("CORSED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173").split(",").map((s) => s.trim())
       },
       db: {
         uri: optionalEnv("MONGODB_URI", "mongodb://localhost:27017/evee_db"),
@@ -107,7 +107,7 @@ var init_config = __esm({
         windowMs: numEnv("RATE_LIMIT_WINDOW_MS", 6e4),
         general: numEnv("RATE_LIMIT_GENERAL_MAX", 100),
         auth: numEnv("RATE_LIMIT_AUTH_MAX", 10),
-        checkout: numEnv("RATE_LIMIT_CHECKOUT_MAX", 5),
+        checkout: numEnv("RATE_LIMIT_CHECKOUT_MAX", 10),
         search: numEnv("RATE_LIMIT_SEARCH_MAX", 30)
       },
       payment: {
@@ -118,7 +118,10 @@ var init_config = __esm({
         publishableKey: optionalEnv("STRIPE_PUBLISHABLE_KEY", ""),
         webhookSecret: optionalEnv("STRIPE_WEBHOOK_SECRET", ""),
         currency: optionalEnv("STRIPE_CURRENCY", "pkr"),
-        successUrl: optionalEnv("STRIPE_SUCCESS_URL", "http://localhost:3000/checkout/success?session_id={CHECKOUT_SESSION_ID}"),
+        successUrl: optionalEnv(
+          "STRIPE_SUCCESS_URL",
+          "http://localhost:3000/checkout/success?session_id={CHECKOUT_SESSION_ID}"
+        ),
         cancelUrl: optionalEnv("STRIPE_CANCEL_URL", "http://localhost:3000/checkout/cancel"),
         apiVersion: optionalEnv("STRIPE_API_VERSION", "2025-06-30")
       },
@@ -134,13 +137,17 @@ var init_config = __esm({
         urlEndpoint: optionalEnv("IMAGEKIT_URL_ENDPOINT", "https://ik.imagekit.io/qbwmuvvwo")
       },
       smtp: {
-        host: optionalEnv("SMTP_HOST", "smtp.mailtrap.io"),
-        port: numEnv("SMTP_PORT", 587),
-        secure: boolEnv("SMTP_SECURE", false),
-        user: optionalEnv("SMTP_USER", ""),
-        pass: optionalEnv("SMTP_PASS", ""),
+        service: optionalEnv("SMTP_SERVICE", "gmail"),
+        host: optionalEnv("SMTP_HOST", "smtp.gmail.com"),
+        port: numEnv("SMTP_PORT", 465),
+        secure: boolEnv("SMTP_SECURE", true),
+        user: optionalEnv("GMAIL_USER", optionalEnv("SMTP_USER", "")).trim(),
+        pass: optionalEnv("GMAIL_APP_PASSWORD", optionalEnv("SMTP_PASS", "")).replace(/\s+/g, ""),
         fromName: optionalEnv("EMAIL_FROM_NAME", "EVee by Crown Motors"),
-        fromAddress: optionalEnv("EMAIL_FROM_ADDRESS", "noreply@evee.pk")
+        fromAddress: optionalEnv(
+          "EMAIL_FROM_ADDRESS",
+          optionalEnv("GMAIL_USER", optionalEnv("SMTP_USER", "noreply@evee.pk"))
+        ).trim()
       },
       store: {
         name: optionalEnv("STORE_NAME", "EVee"),
@@ -953,7 +960,7 @@ var import_express_mongo_sanitize = __toESM(require("express-mongo-sanitize"));
 var import_morgan = __toESM(require("morgan"));
 init_config();
 
-// node_modules/uuid/dist-node/stringify.js
+// ../node_modules/uuid/dist-node/stringify.js
 var byteToHex = [];
 for (let i = 0; i < 256; ++i) {
   byteToHex.push((i + 256).toString(16).slice(1));
@@ -962,13 +969,13 @@ function unsafeStringify(arr, offset = 0) {
   return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
 }
 
-// node_modules/uuid/dist-node/rng.js
+// ../node_modules/uuid/dist-node/rng.js
 var rnds8 = new Uint8Array(16);
 function rng() {
   return crypto.getRandomValues(rnds8);
 }
 
-// node_modules/uuid/dist-node/v4.js
+// ../node_modules/uuid/dist-node/v4.js
 function v4(options, buf, offset) {
   if (!buf && !options && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -1196,12 +1203,25 @@ init_config();
 var transporter = null;
 function getTransporter() {
   if (transporter) return transporter;
-  transporter = import_nodemailer.default.createTransport({
-    host: config.smtp.host,
-    port: config.smtp.port,
-    secure: config.smtp.secure,
-    auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : void 0
-  });
+  const isGmail = config.smtp.service?.toLowerCase() === "gmail" || config.smtp.host?.toLowerCase().includes("gmail") || config.smtp.user?.toLowerCase().endsWith("@gmail.com");
+  if (isGmail) {
+    logger.info("Initializing Nodemailer with Gmail service transport");
+    transporter = import_nodemailer.default.createTransport({
+      service: "gmail",
+      auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : void 0
+    });
+  } else {
+    logger.info(`Initializing Nodemailer with SMTP (${config.smtp.host}:${config.smtp.port})`);
+    transporter = import_nodemailer.default.createTransport({
+      host: config.smtp.host,
+      port: config.smtp.port,
+      secure: config.smtp.port === 465 ? true : config.smtp.secure,
+      auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : void 0,
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+  }
   return transporter;
 }
 async function sendEmail(options) {
@@ -1209,18 +1229,32 @@ async function sendEmail(options) {
     logger.debug("Email suppressed in test mode:", { to: options.to, subject: options.subject });
     return;
   }
+  if (!config.smtp.user || !config.smtp.pass) {
+    const errorMsg = "Gmail / SMTP credentials are not configured. Please set GMAIL_USER and GMAIL_APP_PASSWORD in your .env file.";
+    logger.error(errorMsg);
+    throw new Error(errorMsg);
+  }
   const transport = getTransporter();
   try {
-    await transport.sendMail({
-      from: `"${config.smtp.fromName}" <${config.smtp.fromAddress}>`,
+    const fromAddress = config.smtp.user || config.smtp.fromAddress;
+    const info = await transport.sendMail({
+      from: `"${config.smtp.fromName}" <${fromAddress}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text
     });
-    logger.info("Email sent:", { to: options.to, subject: options.subject });
+    logger.info("Email sent successfully:", {
+      to: options.to,
+      subject: options.subject,
+      messageId: info.messageId
+    });
   } catch (error) {
-    logger.error("Email send failed:", { to: options.to, subject: options.subject, error });
+    logger.error("Email send failed:", {
+      to: options.to,
+      subject: options.subject,
+      error: error.message
+    });
     throw error;
   }
 }
@@ -1229,29 +1263,30 @@ async function sendVerificationEmail(to, name, token) {
   const verifyUrl = `${storeUrl}/verify-email?token=${token}`;
   await sendEmail({
     to,
-    subject: `Verify your EVee account`,
+    subject: `Verify your Crown Motors EVee Account`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a1a2e;">Welcome to EVee, ${name}!</h2>
-        <p>Please verify your email address to activate your account.</p>
-        <p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0d0f12; color: #ffffff; padding: 32px; border-radius: 8px;">
+        <h2 style="color: #d4e790; margin-top: 0;">Welcome to EVee, ${name}!</h2>
+        <p style="color: #cfd4dc;">Please verify your email address to activate your account and access your electric vehicle reservation portal.</p>
+        <p style="margin: 28px 0;">
           <a href="${verifyUrl}" style="
             display: inline-block;
-            padding: 12px 24px;
-            background-color: #00d4aa;
-            color: white;
+            padding: 14px 28px;
+            background-color: #d4e790;
+            color: #0b0c0e;
             text-decoration: none;
             border-radius: 6px;
             font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 0.5px;
           ">Verify Email Address</a>
         </p>
-        <p style="color: #666;">This link expires in 24 hours.</p>
-        <p style="color: #666; font-size: 12px;">If you did not create an account, please ignore this email.</p>
-        <hr/>
-        <p style="color: #999; font-size: 11px;">${config.store.name} by ${config.store.company}</p>
+        <p style="color: #8892b0; font-size: 13px;">This verification link will expire in 24 hours.</p>
+        <hr style="border: none; border-top: 1px solid #222; margin: 24px 0;" />
+        <p style="color: #666; font-size: 11px;">${config.store.name} by ${config.store.company} Pakistan</p>
       </div>
     `,
-    text: `Welcome to EVee! Verify your email: ${verifyUrl}`
+    text: `Welcome to EVee! Verify your email address: ${verifyUrl}`
   });
 }
 async function sendPasswordResetEmail(to, name, token) {
@@ -1260,25 +1295,24 @@ async function sendPasswordResetEmail(to, name, token) {
     to,
     subject: `Reset your EVee password`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a1a2e;">Password Reset Request</h2>
-        <p>Hi ${name},</p>
-        <p>We received a request to reset your password. Click the button below to set a new password.</p>
-        <p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0d0f12; color: #ffffff; padding: 32px; border-radius: 8px;">
+        <h2 style="color: #d4e790; margin-top: 0;">Password Reset Request</h2>
+        <p style="color: #cfd4dc;">Hi ${name},</p>
+        <p style="color: #cfd4dc;">We received a request to reset your password. Click the button below to choose a new password.</p>
+        <p style="margin: 28px 0;">
           <a href="${resetUrl}" style="
             display: inline-block;
-            padding: 12px 24px;
-            background-color: #00d4aa;
-            color: white;
+            padding: 14px 28px;
+            background-color: #d4e790;
+            color: #0b0c0e;
             text-decoration: none;
             border-radius: 6px;
             font-weight: bold;
           ">Reset Password</a>
         </p>
-        <p style="color: #666;">This link expires in 1 hour.</p>
-        <p style="color: #666; font-size: 12px;">If you did not request a password reset, please ignore this email and your password will remain unchanged.</p>
-        <hr/>
-        <p style="color: #999; font-size: 11px;">${config.store.name} by ${config.store.company}</p>
+        <p style="color: #8892b0; font-size: 13px;">This link expires in 1 hour.</p>
+        <hr style="border: none; border-top: 1px solid #222; margin: 24px 0;" />
+        <p style="color: #666; font-size: 11px;">If you did not request this, please ignore this email.</p>
       </div>
     `,
     text: `Reset your EVee password: ${resetUrl} (expires in 1 hour)`
@@ -1288,33 +1322,43 @@ async function sendOrderConfirmationEmail(to, name, orderNumber, items, total) {
   const orderUrl = `${storeUrl}/orders/${orderNumber}`;
   const itemsHtml = items.map(
     (item) => `<tr>
-          <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.price}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #222; color: #fff;">${item.name}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #222; text-align: center; color: #aaa;">${item.quantity}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #222; text-align: right; color: #d4e790; font-weight: bold;">${item.price}</td>
         </tr>`
   ).join("");
   await sendEmail({
     to,
-    subject: `Order Confirmed \u2014 ${orderNumber}`,
+    subject: `Order & Vehicle Reservation Confirmed \u2014 ${orderNumber}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a1a2e;">Order Confirmed!</h2>
-        <p>Hi ${name}, thank you for your order.</p>
-        <p><strong>Order Number:</strong> ${orderNumber}</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0d0f12; color: #ffffff; padding: 32px; border-radius: 8px;">
+        <h2 style="color: #d4e790; margin-top: 0;">Reservation Confirmed!</h2>
+        <p style="color: #cfd4dc;">Hello ${name}, thank you for choosing Crown Motors.</p>
+        <p style="color: #cfd4dc;"><strong>Official Order Number:</strong> <span style="font-family: monospace; color: #d4e790;">${orderNumber}</span></p>
+        <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
           <thead>
-            <tr style="background: #f5f5f5;">
-              <th style="padding: 8px; text-align: left;">Product</th>
-              <th style="padding: 8px; text-align: center;">Qty</th>
-              <th style="padding: 8px; text-align: right;">Price</th>
+            <tr style="background: #16181d; color: #888; font-size: 12px; text-transform: uppercase;">
+              <th style="padding: 10px; text-align: left;">Vehicle / Item</th>
+              <th style="padding: 10px; text-align: center;">Qty</th>
+              <th style="padding: 10px; text-align: right;">Price</th>
             </tr>
           </thead>
           <tbody>${itemsHtml}</tbody>
         </table>
-        <p><strong>Total: ${total}</strong></p>
-        <p><a href="${orderUrl}">Track your order</a></p>
-        <hr/>
-        <p style="color: #999; font-size: 11px;">${config.store.name} by ${config.store.company}</p>
+        <p style="font-size: 18px; margin: 20px 0; color: #ffffff;"><strong>Total Paid: <span style="color: #d4e790;">${total}</span></strong></p>
+        <p style="margin: 24px 0;">
+          <a href="${orderUrl}" style="
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #d4e790;
+            color: #0b0c0e;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+          ">View Order Details & Delivery Tracking</a>
+        </p>
+        <hr style="border: none; border-top: 1px solid #222; margin: 24px 0;" />
+        <p style="color: #666; font-size: 11px;">${config.store.name} by ${config.store.company}</p>
       </div>
     `,
     text: `Order ${orderNumber} confirmed. Total: ${total}. Track: ${orderUrl}`
@@ -1323,15 +1367,15 @@ async function sendOrderConfirmationEmail(to, name, orderNumber, items, total) {
 async function sendShipmentEmail(to, name, orderNumber, carrier, trackingNumber) {
   await sendEmail({
     to,
-    subject: `Your EVee order ${orderNumber} has shipped!`,
+    subject: `Your EVee Vehicle ${orderNumber} Has Dispatched!`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a1a2e;">Your Order Has Shipped!</h2>
-        <p>Hi ${name}, great news! Your order ${orderNumber} is on its way.</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0d0f12; color: #ffffff; padding: 32px; border-radius: 8px;">
+        <h2 style="color: #d4e790;">Your Vehicle Is On The Way!</h2>
+        <p>Hi ${name}, our white-glove carrier is en route with your vehicle.</p>
         <p><strong>Carrier:</strong> ${carrier}</p>
-        <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
-        <hr/>
-        <p style="color: #999; font-size: 11px;">${config.store.name} by ${config.store.company}</p>
+        <p><strong>Tracking / Dispatch ID:</strong> ${trackingNumber}</p>
+        <hr style="border: none; border-top: 1px solid #222; margin: 24px 0;" />
+        <p style="color: #666; font-size: 11px;">${config.store.name} by ${config.store.company}</p>
       </div>
     `,
     text: `Order ${orderNumber} shipped via ${carrier}. Tracking: ${trackingNumber}`
@@ -1342,13 +1386,11 @@ async function sendCancellationEmail(to, name, orderNumber, reason) {
     to,
     subject: `Order ${orderNumber} Cancelled`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a1a2e;">Order Cancelled</h2>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0d0f12; color: #ffffff; padding: 32px; border-radius: 8px;">
+        <h2 style="color: #ff6b6b;">Order Cancelled</h2>
         <p>Hi ${name}, your order ${orderNumber} has been cancelled.</p>
         ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
-        <p>If you have questions, please contact us at ${config.store.supportEmail}.</p>
-        <hr/>
-        <p style="color: #999; font-size: 11px;">${config.store.name} by ${config.store.company}</p>
+        <p>If you have questions, please reach out to our concierge at ${config.store.supportEmail}.</p>
       </div>
     `,
     text: `Order ${orderNumber} cancelled.${reason ? ` Reason: ${reason}` : ""}`
@@ -1357,14 +1399,12 @@ async function sendCancellationEmail(to, name, orderNumber, reason) {
 async function sendRefundEmail(to, name, orderNumber, refundAmount) {
   await sendEmail({
     to,
-    subject: `Refund processed for order ${orderNumber}`,
+    subject: `Refund Processed for Order ${orderNumber}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a1a2e;">Refund Processed</h2>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0d0f12; color: #ffffff; padding: 32px; border-radius: 8px;">
+        <h2 style="color: #d4e790;">Refund Processed</h2>
         <p>Hi ${name}, a refund of <strong>${refundAmount}</strong> has been processed for order ${orderNumber}.</p>
-        <p>Please allow 5\u201310 business days for the refund to appear in your account.</p>
-        <hr/>
-        <p style="color: #999; font-size: 11px;">${config.store.name} by ${config.store.company}</p>
+        <p>Please allow 3\u20137 business days for the funds to reflect on your original payment card.</p>
       </div>
     `,
     text: `Refund of ${refundAmount} processed for order ${orderNumber}.`
@@ -1373,31 +1413,31 @@ async function sendRefundEmail(to, name, orderNumber, refundAmount) {
 async function sendCheckoutOtpEmail(to, name, otp) {
   await sendEmail({
     to,
-    subject: `Your Crown Motors Vehicle Verification Code: ${otp}`,
+    subject: `${otp} is your EVee Crown Motors Verification Code`,
     html: `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #0b0c0e; color: #ffffff; padding: 32px; border-radius: 8px;">
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #0b0c0e; color: #ffffff; padding: 36px; border-radius: 12px; border: 1px solid #1f232b;">
         <div style="border-bottom: 1px solid #222; padding-bottom: 20px; margin-bottom: 24px;">
-          <h1 style="margin: 0; font-size: 20px; letter-spacing: 2px; color: #d4e790; text-transform: uppercase;">Crown Motors</h1>
-          <p style="margin: 4px 0 0; font-size: 11px; letter-spacing: 1px; color: #888; text-transform: uppercase;">Electric Vehicle Handover Verification</p>
+          <h1 style="margin: 0; font-size: 22px; letter-spacing: 3px; color: #d4e790; text-transform: uppercase;">Crown Motors</h1>
+          <p style="margin: 6px 0 0; font-size: 11px; letter-spacing: 1.5px; color: #8892b0; text-transform: uppercase;">Electric Vehicle Handover Verification</p>
         </div>
         <p style="font-size: 15px; color: #e0e0e0; margin-bottom: 16px;">Hello ${name || "Valued Customer"},</p>
-        <p style="font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 24px;">
-          Use the 6-digit verification code below to verify your email address and authorize your electric vehicle reservation and handover dispatch.
+        <p style="font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 28px;">
+          To verify your email address and authorize your electric vehicle reservation and handover dispatch, please enter the following 6-digit security code:
         </p>
-        <div style="background-color: #16181d; border: 1px solid #2a2d35; border-radius: 8px; text-align: center; padding: 24px; margin-bottom: 24px;">
-          <span style="font-family: monospace; font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #d4e790;">${otp}</span>
-          <p style="font-size: 12px; color: #777; margin: 12px 0 0;">This code is valid for 10 minutes. Do not share it with anyone.</p>
+        <div style="background-color: #16181d; border: 1px solid #2a2d35; border-radius: 10px; text-align: center; padding: 26px; margin-bottom: 26px;">
+          <span style="font-family: monospace; font-size: 40px; font-weight: bold; letter-spacing: 12px; color: #d4e790; display: inline-block;">${otp}</span>
+          <p style="font-size: 12px; color: #777; margin: 14px 0 0;">This code is valid for 10 minutes. Never share this code with anyone.</p>
         </div>
-        <p style="font-size: 13px; color: #888; line-height: 1.5;">
-          Our concierge team requires a verified email to ensure your registration paperwork, VIN documentation, and white-glove delivery tracking reach you securely.
+        <p style="font-size: 13px; color: #888; line-height: 1.6;">
+          Our concierge team verifies your email to ensure official VIN documentation, warranty certificate, and handover schedule reach you securely.
         </p>
-        <hr style="border: none; border-top: 1px solid #222; margin: 28px 0 20px;" />
+        <hr style="border: none; border-top: 1px solid #222; margin: 30px 0 20px;" />
         <p style="font-size: 11px; color: #555; margin: 0;">
           \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Crown Motors / EVee Pakistan. All rights reserved.
         </p>
       </div>
     `,
-    text: `Crown Motors Verification Code: ${otp}. Valid for 10 minutes. Verify your email for electric vehicle reservation and handover dispatch.`
+    text: `Crown Motors Verification Code: ${otp}. Valid for 10 minutes. Use this code to authorize your electric vehicle reservation.`
   });
 }
 
@@ -2142,31 +2182,43 @@ async function createProduct(data) {
   });
 }
 async function updateProduct(id, data) {
-  const product = await Product.findById(id);
+  const query = import_mongoose19.default.isValidObjectId(id) ? { _id: id } : { slug: id };
+  const product = await Product.findOne(query);
   if (!product) throw new NotFoundError("Product");
+  const productId = product._id.toString();
   if (data.slug && data.slug !== product.slug) {
-    const exists = await Product.findOne({ slug: data.slug, _id: { $ne: id } });
+    const exists = await Product.findOne({ slug: data.slug, _id: { $ne: productId } });
     if (exists) throw new ConflictError("Slug already in use");
   }
   if (data.sku && data.sku !== product.sku) {
-    const exists = await Product.findOne({ sku: data.sku, _id: { $ne: id } });
+    const exists = await Product.findOne({ sku: data.sku, _id: { $ne: productId } });
     if (exists) throw new ConflictError("SKU already in use");
   }
   if (data.category) {
-    const category = await Category.findById(data.category);
-    if (!category) throw new NotFoundError("Category");
-    product.category = new import_mongoose19.default.Types.ObjectId(data.category);
+    if (import_mongoose19.default.isValidObjectId(data.category)) {
+      const category = await Category.findById(data.category);
+      if (!category) throw new NotFoundError("Category");
+      product.category = category._id;
+    } else {
+      const category = await Category.findOne({ slug: data.category });
+      if (category) {
+        product.category = category._id;
+      }
+    }
   }
   const { category: _cat, ...otherUpdates } = data;
   Object.assign(product, otherUpdates);
-  return product.save();
+  await product.save();
+  return await Product.findById(product._id).populate("category", "name slug") || product;
 }
 async function archiveProduct(id) {
-  const result = await Product.findByIdAndUpdate(id, { isActive: false });
+  const query = import_mongoose19.default.isValidObjectId(id) ? { _id: id } : { slug: id };
+  const result = await Product.findOneAndUpdate(query, { isActive: false });
   if (!result) throw new NotFoundError("Product");
 }
 async function deleteProduct(id) {
-  const result = await Product.findByIdAndDelete(id);
+  const query = import_mongoose19.default.isValidObjectId(id) ? { _id: id } : { slug: id };
+  const result = await Product.findOneAndDelete(query);
   if (!result) throw new NotFoundError("Product");
 }
 
@@ -2311,6 +2363,7 @@ productRouter.get("/search", searchLimiter, optionalAuth, getProducts2);
 productRouter.get("/:id/related", getRelatedProducts2);
 productRouter.get("/:slug", optionalAuth, getProductBySlug2);
 productRouter.post("/", authenticate, authorize("admin"), validate(createProductSchema), createProduct2);
+productRouter.put("/:id", authenticate, authorize("admin"), validate(updateProductSchema), updateProduct2);
 productRouter.patch("/:id", authenticate, authorize("admin"), validate(updateProductSchema), updateProduct2);
 productRouter.patch("/:id/archive", authenticate, authorize("admin"), archiveProduct2);
 productRouter.delete("/:id", authenticate, authorize("admin"), deleteProduct2);
@@ -2952,40 +3005,40 @@ var StripePaymentProvider = class {
       apiVersion: "2025-02-24.acacia"
     });
   }
+  async retrieveCheckoutSession(sessionId) {
+    return this.stripe.checkout.sessions.retrieve(sessionId);
+  }
   async createCheckout(options) {
-    const isPlaceholder = !config.stripe.secretKey || config.stripe.secretKey.startsWith("sk_test_placeholder") || config.stripe.secretKey === "sk_test_..." || config.stripe.secretKey === "dummy_key_for_initialization";
-    if (isPlaceholder) {
-      logger.info(
-        `[STRIPE TEST MODE] Generating interactive Stripe payment page for order ${options.orderNumber}`
+    if (!config.stripe.secretKey || config.stripe.secretKey === "dummy_key_for_initialization" || config.stripe.secretKey === "sk_test_...") {
+      throw new PaymentError(
+        "Real Stripe Secret Key is not configured. Please set STRIPE_SECRET_KEY in your backend .env file."
       );
-      const testSessionId = `cs_test_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const checkoutUrl = `${config.server.frontendUrl}/checkout/pay?session_id=${testSessionId}&order_number=${options.orderNumber}&amount=${options.grandTotal}&currency=${options.currency}`;
-      return {
-        sessionId: testSessionId,
-        checkoutUrl,
-        provider: this.providerName,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1e3)
-      };
     }
-    const lineItems = options.items.map((item) => ({
-      price_data: {
-        currency: options.currency.toLowerCase(),
-        product_data: {
-          name: item.name,
-          description: item.description,
-          images: item.images && item.images.length > 0 ? [item.images[0]] : void 0
+    const currency = (config.stripe.currency || options.currency).toLowerCase();
+    const lineItems = options.items.map((item) => {
+      const validImages = item.images?.filter(
+        (img) => typeof img === "string" && img.startsWith("http") && !img.includes("localhost") && !img.includes("127.0.0.1")
+      );
+      return {
+        price_data: {
+          currency,
+          product_data: {
+            name: item.name || "Electric Vehicle / Equipment",
+            description: item.description?.substring(0, 500) || void 0,
+            images: validImages && validImages.length > 0 ? [validImages[0]] : void 0
+          },
+          unit_amount: item.unitAmount
         },
-        unit_amount: item.unitAmount
-      },
-      quantity: item.quantity
-    }));
+        quantity: item.quantity
+      };
+    });
     if (options.shippingFee > 0) {
       lineItems.push({
         price_data: {
-          currency: options.currency.toLowerCase(),
+          currency,
           product_data: {
-            name: "Shipping Fee",
-            description: "Delivery charge"
+            name: "White-Glove Vehicle Delivery & Handover Dispatch",
+            description: "Insured carrier delivery directly to your specified address"
           },
           unit_amount: options.shippingFee
         },
@@ -2995,7 +3048,7 @@ var StripePaymentProvider = class {
     if (options.taxAmount > 0) {
       lineItems.push({
         price_data: {
-          currency: options.currency.toLowerCase(),
+          currency,
           product_data: {
             name: "Tax / GST"
           },
@@ -3004,6 +3057,8 @@ var StripePaymentProvider = class {
         quantity: 1
       });
     }
+    const successUrl = `${config.server.frontendUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_number=${options.orderNumber}`;
+    const cancelUrl = `${config.server.frontendUrl}/checkout/cancel?order_number=${options.orderNumber}`;
     const sessionParams = {
       mode: "payment",
       line_items: lineItems,
@@ -3014,9 +3069,10 @@ var StripePaymentProvider = class {
         orderNumber: options.orderNumber,
         ...options.metadata
       },
-      success_url: config.stripe.successUrl.replace("{CHECKOUT_SESSION_ID}", "{CHECKOUT_SESSION_ID}"),
-      cancel_url: config.stripe.cancelUrl
+      success_url: successUrl,
+      cancel_url: cancelUrl
     };
+    logger.info(`[STRIPE] Creating Checkout Session for order ${options.orderNumber} in currency ${currency}`);
     const session = await retryWithBackoff(
       () => this.stripe.checkout.sessions.create(
         sessionParams,
@@ -3025,8 +3081,9 @@ var StripePaymentProvider = class {
       { maxAttempts: 3 }
     );
     if (!session.url) {
-      throw new PaymentError("Failed to generate Stripe checkout URL");
+      throw new PaymentError("Failed to generate official Stripe checkout URL");
     }
+    logger.info(`[STRIPE] Checkout Session created: ${session.id}`);
     return {
       sessionId: session.id,
       checkoutUrl: session.url,
@@ -3063,7 +3120,7 @@ var StripePaymentProvider = class {
         const session = stripeEvent.data.object;
         status = session.payment_status === "paid" ? "paid" : "unknown";
         orderNumber = session.client_reference_id || session.metadata?.orderNumber;
-        paymentIntentId = session.payment_intent;
+        paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
         amount = session.amount_total || void 0;
         currency = session.currency?.toUpperCase();
         break;
@@ -3220,17 +3277,19 @@ async function sendCheckoutOtp(input) {
     expiresAt,
     isVerified: false
   });
-  logger.info(`[CHECKOUT OTP] Verification code generated for ${normalizedEmail}: ${otp}`);
+  logger.info(`[CHECKOUT OTP] Verification code generated for ${normalizedEmail}`);
   try {
     await sendCheckoutOtpEmail(normalizedEmail, input.fullName || "Customer", otp);
     logger.info(`[CHECKOUT OTP] Verification email dispatched to ${normalizedEmail}`);
   } catch (err) {
-    logger.warn(`[CHECKOUT OTP] SMTP dispatch skipped or failed (${err.message}). Code logged to console: ${otp}`);
+    logger.error(`[CHECKOUT OTP] Real email delivery failed: ${err.message}`);
+    throw new ValidationError(
+      `Could not send verification code to ${normalizedEmail}. ${err.message}`
+    );
   }
   return {
     success: true,
-    message: `Verification code sent to ${normalizedEmail}. Valid for 10 minutes.`,
-    testOtp: config.isDevelopment ? otp : void 0
+    message: `A 6-digit verification code has been dispatched to ${normalizedEmail}. Please check your Gmail/inbox.`
   };
 }
 async function verifyCheckoutOtp(input) {
@@ -3896,29 +3955,39 @@ async function handlePaymentRefunded(event) {
   });
   await order.save();
 }
-async function getPaymentStatus(orderNumber) {
-  let order = await Order.findOne({ orderNumber });
+async function getPaymentStatus(orderIdentifier) {
+  let order = await Order.findOne({
+    $or: [{ orderNumber: orderIdentifier }, { paymentReference: orderIdentifier }]
+  });
   if (!order) throw new NotFoundError("Order");
-  if (order.paymentStatus === "pending" && order.paymentReference?.startsWith("cs_test_")) {
-    logger.info(`[STRIPE TEST MODE] Auto-confirming test payment for order ${orderNumber}`);
+  if (order.paymentStatus === "pending" && order.paymentReference) {
     try {
-      await handlePaymentSuccess({
-        eventId: `evt_sim_${Date.now()}`,
-        eventType: "checkout.session.completed",
-        provider: "stripe",
-        orderNumber: order.orderNumber,
-        paymentIntentId: `pi_sim_${Date.now()}`,
-        amount: order.grandTotal,
-        currency: order.currency,
-        status: "paid",
-        payload: { simulated: true }
-      });
-      order = await Order.findOne({ orderNumber });
+      const stripeProvider = getPaymentProvider("stripe");
+      if (typeof stripeProvider.retrieveCheckoutSession === "function") {
+        const session = await stripeProvider.retrieveCheckoutSession(order.paymentReference);
+        if (session && session.payment_status === "paid") {
+          logger.info(
+            `[STRIPE CONFIRMATION] Session ${order.paymentReference} verified as paid for order ${order.orderNumber}`
+          );
+          await handlePaymentSuccess({
+            eventId: `evt_session_${session.id}`,
+            eventType: "checkout.session.completed",
+            provider: "stripe",
+            orderNumber: order.orderNumber,
+            paymentIntentId: (typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id) || `pi_${session.id}`,
+            amount: session.amount_total || order.grandTotal,
+            currency: session.currency?.toUpperCase() || order.currency,
+            status: "paid",
+            payload: session
+          });
+          order = await Order.findOne({ orderNumber: order.orderNumber });
+        }
+      }
     } catch (err) {
-      logger.error("Error auto-confirming simulated payment:", err);
+      logger.warn(`Could not verify checkout session directly from Stripe: ${err.message}`);
     }
   }
-  const payment = await Payment.findOne({ orderNumber });
+  const payment = await Payment.findOne({ orderNumber: order.orderNumber });
   return {
     orderNumber: order.orderNumber,
     paymentStatus: order.paymentStatus,
@@ -5459,6 +5528,22 @@ function createApp() {
   app2.use("/api/v1/shipping", shippingRouter);
   app2.use("/api/v1/contact", contactRouter);
   app2.use("/api/v1/upload", uploadRouter);
+  app2.use("/api/auth", authRouter);
+  app2.use("/api/users", userRouter);
+  app2.use("/api/products", productRouter);
+  app2.use("/api/categories", categoryRouter);
+  app2.use("/api/cart", cartRouter);
+  app2.use("/api/checkout", checkoutRouter);
+  app2.use("/api/orders", orderRouter);
+  app2.use("/api/payments", paymentRouter);
+  app2.use("/api/coupons", couponRouter);
+  app2.use("/api/reviews", reviewRouter);
+  app2.use("/api/wishlist", wishlistRouter);
+  app2.use("/api/admin", adminRouter);
+  app2.use("/api/analytics", analyticsRouter);
+  app2.use("/api/shipping", shippingRouter);
+  app2.use("/api/contact", contactRouter);
+  app2.use("/api/upload", uploadRouter);
   app2.use("/api/docs", swaggerRouter);
   app2.use(notFoundHandler);
   app2.use(errorHandler);

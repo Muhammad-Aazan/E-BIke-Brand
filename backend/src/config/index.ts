@@ -113,7 +113,7 @@ export const config = {
   },
 
   smtp: {
-    service: optionalEnv('SMTP_SERVICE', ''),
+    service: optionalEnv('SMTP_SERVICE', 'gmail'),
     host: optionalEnv('SMTP_HOST', 'smtp.gmail.com'),
     port: numEnv('SMTP_PORT', 465),
     secure: boolEnv('SMTP_SECURE', true),
